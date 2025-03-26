@@ -1,13 +1,19 @@
+import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
+import 'package:glow_sutra/Screen/home.dart';
 
-import 'package:glow_sutra/test.dart';
 import 'package:provider/provider.dart';
 
 void main() {
-  runApp(const MyApp(
-
-  ));
+  runApp(
+    DevicePreview(
+      enabled: true,
+      tools: [...DevicePreview.defaultTools],
+      builder: (context) => MyApp(),
+    ),
+  );
 }
+
 // void main() {
 //   runApp(
 //     MultiProvider(
@@ -24,6 +30,9 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(home: SkinClassifierScreen());
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: HomePage(),
+    );
   }
 }
