@@ -355,39 +355,39 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-    if (_progress >= 100) ...[
-                              _buildField(
-                                "Acne Status",
-                                '${_resultAcne}',
-                                Colors.black,
-                              ),
-                              _buildFieldselct(
-                                "Skin Type",
-                                _resultType.isNotEmpty ? _resultType : null,
-                                _skinTypes,
-                                (newValue) {
-                                  setState(() {
-                                    _resultType = newValue!;
-                                  });
-                                },
-                              ),
-                              _buildFieldselct(
-                                "Skin Tone",
-                                _resultTone.isNotEmpty ? _resultTone : null,
-                                _skinTones,
-                                (newValue) {
-                                  setState(() {
-                                    _resultTone = newValue!;
-                                  });
-                                },
-                              ),
+                              if (_progress >= 100) ...[
+                                _buildField(
+                                  "Acne Status",
+                                  '${_resultAcne}',
+                                  Colors.black,
+                                ),
+                                _buildFieldselct(
+                                  "Skin Type",
+                                  _resultType.isNotEmpty ? _resultType : null,
+                                  _skinTypes,
+                                  (newValue) {
+                                    setState(() {
+                                      _resultType = newValue!;
+                                    });
+                                  },
+                                ),
+                                _buildFieldselct(
+                                  "Skin Tone",
+                                  _resultTone.isNotEmpty ? _resultTone : null,
+                                  _skinTones,
+                                  (newValue) {
+                                    setState(() {
+                                      _resultTone = newValue!;
+                                    });
+                                  },
+                                ),
 
-                              _buildField(
-                                "Precaution",
-                                '${_precautions}',
-                                Colors.black,
-                              ),
-    ]
+                                _buildField(
+                                  "Precaution",
+                                  '${_precautions}',
+                                  Colors.black,
+                                ),
+                              ],
                             ],
                           ),
                         )
