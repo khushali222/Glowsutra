@@ -81,6 +81,7 @@ flutter:
     - assets/models/skin_type_model.tflite
     - assets/models/skintonemodel.tflite
     - assets/models/model_unquant.tflite
+    - assets/models/Wrinkles.tflite
     - assets/models/labels.txt
 
   #   - images/a_dot_burr.jpeg
