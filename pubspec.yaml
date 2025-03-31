@@ -50,6 +50,7 @@ dependencies:
   curved_navigation_bar:
   easy_date_timeline:
   shimmer:
+  face_camera:
 
 
 
@@ -82,6 +83,7 @@ flutter:
     - assets/models/skintonemodel.tflite
     - assets/models/model_unquant.tflite
     - assets/models/Wrinkles.tflite
+    - assets/models/skin_Acne.tflite
     - assets/models/labels.txt
 
   #   - images/a_dot_burr.jpeg

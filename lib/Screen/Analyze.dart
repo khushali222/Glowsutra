@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -41,6 +42,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
   ];
   final List<String> _acneLabels = ["Acne", "Normal"];
   final List<String> _wrinkleLabels = ["Wrinkled", "Normal"];
+
   @override
   void initState() {
     super.initState();
@@ -116,70 +118,6 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
     _processImage(image);
   }
 
-  /// 🔹 Process Image & Run All Three Models
-  // Future<void> _processImage(File image) async {
-  //   Uint8List imgBytes = await image.readAsBytes();
-  //   var input = _preprocessImage(imgBytes);
-  //
-  //   var outputAcne = List<List<double>>.filled(1, List.filled(2, 0.0));
-  //   var outputType = List<List<double>>.filled(1, List.filled(3, 0.0));
-  //   var outputTone = List<List<double>>.filled(1, List.filled(3, 0.0));
-  //   var outputWrinkle = List<List<double>>.filled(1, List.filled(2, 0.0));
-  //
-  //   _acneInterpreter!.run(input, outputAcne);
-  //   _skinTypeInterpreter!.run(input, outputType);
-  //   _skinToneInterpreter!.run(input, outputTone);
-  //   _wrinkleInterpreter!.run(input, outputWrinkle);
-  //
-  //   int acneIndex = outputAcne[0].indexOf(
-  //     outputAcne[0].reduce((a, b) => a > b ? a : b),
-  //   );
-  //   int typeIndex = outputType[0].indexOf(
-  //     outputType[0].reduce((a, b) => a > b ? a : b),
-  //   );
-  //   int toneIndex = outputTone[0].indexOf(
-  //     outputTone[0].reduce((a, b) => a > b ? a : b),
-  //   );
-  //
-  //   int wrinkleIndex = outputWrinkle[0].indexOf(
-  //     outputWrinkle[0].reduce((a, b) => a > b ? a : b),
-  //   );
-  //
-  //   _acneInterpreter!.run(input, outputAcne);
-  //   setState(() {
-  //     _progress = 70;
-  //   });
-  //   await Future.delayed(Duration(milliseconds: 1000));
-  //
-  //   _skinTypeInterpreter!.run(input, outputType);
-  //   setState(() {
-  //     _progress = 85;
-  //   });
-  //   await Future.delayed(Duration(milliseconds: 1000));
-  //   _wrinkleInterpreter!.run(input, outputType);
-  //   setState(() {
-  //     _progress = 90;
-  //   });
-  //   await Future.delayed(Duration(milliseconds: 1000));
-  //   _skinToneInterpreter!.run(input, outputTone);
-  //   setState(() {
-  //     _progress = 100;
-  //   });
-  //   setState(() {
-  //     _resultAcne = "${_acneLabels[acneIndex]}";
-  //     _resultType = "${_skinTypes[typeIndex]}";
-  //     _resultTone = "${_skinTones[toneIndex]}";
-  //     _resultWrinkle = _wrinkleLabels[wrinkleIndex];
-  //     _precautions = _getPrecautions(
-  //       _skinTypes[typeIndex],
-  //       _acneLabels[acneIndex],
-  //       _skinTones[toneIndex],
-  //       _wrinkleLabels[wrinkleIndex],
-  //
-  //     );
-  //     _isLoading = false;
-  //   });
-  // }
   Future<void> _processImage(File image) async {
     try {
       Uint8List imgBytes = await image.readAsBytes();
@@ -197,10 +135,22 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
       print("Wrinkle Model Output Shape: $wrinkleShape");
 
       // Create dynamic output lists based on actual model output shape
-      var outputAcne = List.generate(acneShape[0], (_) => List.filled(acneShape[1], 0.0));
-      var outputType = List.generate(typeShape[0], (_) => List.filled(typeShape[1], 0.0));
-      var outputTone = List.generate(toneShape[0], (_) => List.filled(toneShape[1], 0.0));
-      var outputWrinkle = List.generate(wrinkleShape[0], (_) => List.filled(wrinkleShape[1], 0.0));
+      var outputAcne = List.generate(
+        acneShape[0],
+        (_) => List.filled(acneShape[1], 0.0),
+      );
+      var outputType = List.generate(
+        typeShape[0],
+        (_) => List.filled(typeShape[1], 0.0),
+      );
+      var outputTone = List.generate(
+        toneShape[0],
+        (_) => List.filled(toneShape[1], 0.0),
+      );
+      var outputWrinkle = List.generate(
+        wrinkleShape[0],
+        (_) => List.filled(wrinkleShape[1], 0.0),
+      );
 
       // Run inference for all models
       _acneInterpreter!.run(input, outputAcne);
@@ -211,7 +161,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
       setState(() => _progress = 85);
       await Future.delayed(Duration(milliseconds: 500));
 
-      _wrinkleInterpreter!.run(input, outputWrinkle);  // Corrected
+      _wrinkleInterpreter!.run(input, outputWrinkle); // Corrected
       setState(() => _progress = 90);
       await Future.delayed(Duration(milliseconds: 500));
 
@@ -219,10 +169,18 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
       setState(() => _progress = 100);
 
       // Find the highest probability index for each model's output
-      int acneIndex = outputAcne[0].indexOf(outputAcne[0].reduce((a, b) => a > b ? a : b));
-      int typeIndex = outputType[0].indexOf(outputType[0].reduce((a, b) => a > b ? a : b));
-      int toneIndex = outputTone[0].indexOf(outputTone[0].reduce((a, b) => a > b ? a : b));
-      int wrinkleIndex = outputWrinkle[0].indexOf(outputWrinkle[0].reduce((a, b) => a > b ? a : b));
+      int acneIndex = outputAcne[0].indexOf(
+        outputAcne[0].reduce((a, b) => a > b ? a : b),
+      );
+      int typeIndex = outputType[0].indexOf(
+        outputType[0].reduce((a, b) => a > b ? a : b),
+      );
+      int toneIndex = outputTone[0].indexOf(
+        outputTone[0].reduce((a, b) => a > b ? a : b),
+      );
+      int wrinkleIndex = outputWrinkle[0].indexOf(
+        outputWrinkle[0].reduce((a, b) => a > b ? a : b),
+      );
 
       // Update UI state
       setState(() {
@@ -238,7 +196,6 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
         );
         _isLoading = false;
       });
-
     } catch (e, stackTrace) {
       print("❌ Error processing image: $e");
       print(stackTrace);
@@ -248,7 +205,12 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
     }
   }
 
-  String _getPrecautions(String skinType, String acneStatus, String skinTone ,String wrinkleStatus) {
+  String _getPrecautions(
+    String skinType,
+    String acneStatus,
+    String skinTone,
+    String wrinkleStatus,
+  ) {
     String precautions = "Skin Care Tips: \n";
 
     // Tips based on skin type
@@ -366,8 +328,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
       progressText = "Analyzing Skin Tone...";
     } else if (_progress >= 90 && _progress < 100) {
       progressText = "Analyzing Wrinkles...";
-    }
-    else if (_progress == 100) {
+    } else if (_progress == 100) {
       progressText = "Analysis Complete!";
     }
 
@@ -404,7 +365,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
             SizedBox(height: 10),
 
             GestureDetector(
-              onTap: () => _pickImage(ImageSource.gallery),
+              onTap: () => _pickImage(ImageSource.camera),
               child:
                   _isLoading
                       ? _buildShimmerEffect()
@@ -480,11 +441,13 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
                                 ),
                                 _buildFieldselct(
                                   "Wrinkles",
-                                  _resultWrinkle.isNotEmpty ? _resultWrinkle : null,
+                                  _resultWrinkle.isNotEmpty
+                                      ? _resultWrinkle
+                                      : null,
                                   _wrinkleLabels,
-                                      (newValue) {
+                                  (newValue) {
                                     setState(() {
-                                      _resultTone = newValue!;
+                                      _resultWrinkle = newValue!;
                                     });
                                   },
                                 ),
@@ -533,6 +496,16 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
                 ],
               ),
             SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: () {
+                // Navigator.push(
+                //   context,
+                //   MaterialPageRoute(builder: (context) => FaceDetectionScreen()),
+                // );
+              },
+              icon: Icon(Icons.image),
+              label: Text("Gallery"),
+            ),
           ],
         ),
       ),
