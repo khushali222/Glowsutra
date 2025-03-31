@@ -5,6 +5,7 @@ import 'package:glow_sutra/Screen/home.dart';
 import 'package:provider/provider.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(
     DevicePreview(
       enabled: true,

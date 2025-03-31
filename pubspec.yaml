@@ -50,6 +50,7 @@ dependencies:
   curved_navigation_bar:
   easy_date_timeline:
   shimmer:
+  camera:
   face_camera:
 
 
