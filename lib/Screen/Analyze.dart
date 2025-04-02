@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:glow_sutra/Screen/test.dart';
-
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,7 +24,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
   Interpreter? _skinToneInterpreter;
   Interpreter? _wrinkleInterpreter;
   FaceDetector? _faceDetector;
-  late CameraController cameraController;
+
   File? _image;
   String _resultAcne = "";
   String _resultType = "";
@@ -48,7 +47,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
   final List<String> _wrinkleLabels = ["Wrinkled", "Normal"];
 
   late FaceCameraController controller;
-  bool _isCameraInitialized = false;
+
   @override
   void initState() {
     super.initState();
@@ -60,8 +59,6 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
       ),
     );
     _loadSavedData();
-    initializeCamera();
-    challengeActions.shuffle();
   }
 
   //Load all three models
@@ -295,6 +292,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
       if (_imagePath.isNotEmpty) {
         _image = File(_imagePath);
       }
+      print(" acne $_resultAcne");
     });
   }
 
@@ -310,10 +308,17 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
     if (_image != null) {
       await prefs.setString('imagePath', _image!.path);
     }
-
+    // Debugging: Print saved values
+    print("✅ Saved Data:");
+    print("Acne Status: ${prefs.getString('acneStatus')}");
+    print("Skin Type: ${prefs.getString('skinType')}");
+    print("Skin Tone: ${prefs.getString('skinTone')}");
+    print("Wrinkles: ${prefs.getString('wrinkles')}");
+    print("Precautions: ${prefs.getString('precautions')}");
+    print("Image Path: ${prefs.getString('imagePath')}");
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text("✅ Details & Image Saved!")));
+    ).showSnackBar(SnackBar(content: Text("Details Saved!")));
   }
 
   Widget _buildShimmerEffect() {
@@ -358,161 +363,6 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
     );
   }
 
-  //this for autocheck camera
-  final FaceDetector faceDetector = FaceDetector(
-    options: FaceDetectorOptions(
-      enableContours: true,
-      enableClassification: true,
-      minFaceSize: 0.3,
-      performanceMode: FaceDetectorMode.fast,
-    ),
-  );
-
-  bool isCameraInitialized = false;
-  bool isDetecting = false;
-  bool isFrontCamera = true;
-  List<String> challengeActions = ['smile', 'blink', 'lookRight', 'lookLeft'];
-  int currentActionIndex = 0;
-  bool waitingForNeutral = false;
-
-  double? smilingProbability;
-  double? leftEyeOpenProbability;
-  double? rightEyeOpenProbability;
-  double? headEulerAngleY;
-
-  // Initialize the camera controller
-  Future<void> initializeCamera() async {
-    final cameras = await availableCameras();
-    final frontCamera = cameras.firstWhere(
-      (camera) => camera.lensDirection == CameraLensDirection.front,
-    );
-    cameraController = CameraController(
-      frontCamera,
-      ResolutionPreset.high,
-      enableAudio: false,
-    );
-    await cameraController.initialize();
-    if (mounted) {
-      setState(() {
-        isCameraInitialized = true;
-      });
-      startFaceDetection();
-    }
-  }
-
-  // Start face detection on the camera image stream
-  void startFaceDetection() {
-    if (isCameraInitialized) {
-      cameraController.startImageStream((CameraImage image) {
-        if (!isDetecting) {
-          isDetecting = true;
-          detectFaces(image).then((_) {
-            isDetecting = false;
-          });
-        }
-      });
-    }
-  }
-
-  // Detect faces in the camera image
-  Future<void> detectFaces(CameraImage image) async {
-    try {
-      final WriteBuffer allBytes = WriteBuffer();
-      for (Plane plane in image.planes) {
-        allBytes.putUint8List(plane.bytes);
-      }
-      final bytes = allBytes.done().buffer.asUint8List();
-
-      final inputImage = InputImage.fromBytes(
-        bytes: bytes,
-        metadata: InputImageMetadata(
-          size: Size(image.width.toDouble(), image.height.toDouble()),
-          rotation: InputImageRotation.rotation270deg,
-          format: InputImageFormat.nv21,
-          bytesPerRow: image.planes[0].bytesPerRow,
-        ),
-      );
-
-      final faces = await faceDetector.processImage(inputImage);
-
-      if (!mounted) return;
-
-      if (faces.isNotEmpty) {
-        final face = faces.first;
-        setState(() {
-          smilingProbability = face.smilingProbability;
-          leftEyeOpenProbability = face.leftEyeOpenProbability;
-          rightEyeOpenProbability = face.rightEyeOpenProbability;
-          headEulerAngleY = face.headEulerAngleY;
-        });
-        checkChallenge(face);
-      }
-    } catch (e) {
-      debugPrint('Error in face detection: $e');
-    }
-  }
-
-  // Check if the face is performing the current challenge action
-  void checkChallenge(Face face) async {
-    if (waitingForNeutral) {
-      if (isNeutralPosition(face)) {
-        waitingForNeutral = false;
-      } else {
-        return;
-      }
-    }
-
-    String currentAction = challengeActions[currentActionIndex];
-    bool actionCompleted = false;
-
-    switch (currentAction) {
-      case 'smile':
-        actionCompleted =
-            face.smilingProbability != null && face.smilingProbability! > 0.5;
-        break;
-      case 'blink':
-        actionCompleted =
-            (face.leftEyeOpenProbability != null &&
-                face.leftEyeOpenProbability! < 0.3) ||
-            (face.rightEyeOpenProbability != null &&
-                face.rightEyeOpenProbability! < 0.3);
-        break;
-      case 'lookRight':
-        actionCompleted =
-            face.headEulerAngleY != null && face.headEulerAngleY! < -10;
-        break;
-      case 'lookLeft':
-        actionCompleted =
-            face.headEulerAngleY != null && face.headEulerAngleY! > 10;
-        break;
-    }
-
-    if (actionCompleted) {
-      currentActionIndex++;
-      if (currentActionIndex >= challengeActions.length) {
-        currentActionIndex = 0;
-        if (mounted) {
-          _processImage(_image!);
-          //Navigator.pop(context, true);
-        }
-      } else {
-        waitingForNeutral = true;
-      }
-    }
-  }
-
-  // Check if the face is in a neutral position
-  bool isNeutralPosition(Face face) {
-    return (face.smilingProbability == null ||
-            face.smilingProbability! < 0.1) &&
-        (face.leftEyeOpenProbability == null ||
-            face.leftEyeOpenProbability! > 0.7) &&
-        (face.rightEyeOpenProbability == null ||
-            face.rightEyeOpenProbability! > 0.7) &&
-        (face.headEulerAngleY == null ||
-            (face.headEulerAngleY! > -10 && face.headEulerAngleY! < 10));
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -522,93 +372,27 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
         backgroundColor: Colors.deepPurple[100],
       ),
 
-      body:
-      SingleChildScrollView(
+      body: SingleChildScrollView(
         child: Column(
           children: [
-            isCameraInitialized
-                ?
-            Stack(
-              children: [
-                Positioned.fill(
-                  child: CameraPreview(cameraController),
-                ),
-                CustomPaint(
-                  painter: HeadMaskPainter(),
-                  child: Container(),
-                ),
-                Positioned(
-                  top: 16,
-                  left: 16,
-                  right: 16,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    color: Colors.black54,
-                    child: Column(
-                      children: [
-                        Text(
-                          'Please ${getActionDescription(challengeActions[currentActionIndex])}',
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 18),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Step ${currentActionIndex + 1} of ${challengeActions.length}',
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 16),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: 16,
-                  left: 16,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    color: Colors.black54,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Smile: ${smilingProbability != null ? (smilingProbability! * 100).toStringAsFixed(2) : 'N/A'}%',
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                        Text(
-                          'Blink: ${leftEyeOpenProbability != null && rightEyeOpenProbability != null ? (((leftEyeOpenProbability! + rightEyeOpenProbability!) / 2) * 100).toStringAsFixed(2) : 'N/A'}%',
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                        Text(
-                          'Look: ${headEulerAngleY != null ? headEulerAngleY!.toStringAsFixed(2) : 'N/A'}°',
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            )
-                : const Center(child: CircularProgressIndicator()),
-            SizedBox(height: 10),
-            // _isCameraInitialized
-            //     ? _buildCameraUI() // Show camera if initialized
-            //     : const Center(child: CircularProgressIndicator()),
-            // GestureDetector(
-            //   onTap: () => _pickImage(ImageSource.gallery),
-            //   child:
-            //       _isLoading
-            //           ? _buildShimmerEffect()
-            //           : (_image != null
-            //               ? Image.file(
-            //                 _image!,
-            //                 height: 200,
-            //                 width: 200,
-            //                 fit: BoxFit.cover,
-            //               )
-            //               : Icon(Icons.image, size: 200, color: Colors.grey)),
-            // ),
+            GestureDetector(
+              onTap: () => _pickImage(ImageSource.gallery),
+              child:
+                  _isLoading
+                      ? _buildShimmerEffect()
+                      : (_image != null
+                          ?
+                  Padding(
+                            padding: const EdgeInsets.only(top: 10),
+                            child: Image.file(
+                              _image!,
+                              height: 200,
+                              width: 200,
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                          : Icon(Icons.image, size: 200, color: Colors.grey)),
+            ),
             if (_isLoading) _buildProgressBar(),
             if (_isError)
               Padding(
@@ -630,7 +414,12 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
                   ),
                 )
                 : Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.only(
+                    left: 16,
+                    right: 16,
+                    top: 16,
+                    bottom: 5,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -644,50 +433,83 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (_progress >= 100) ...[
-                                _buildField(
-                                  "Acne Status",
-                                  '${_resultAcne}',
-                                  Colors.black,
-                                ),
-                                _buildFieldselct(
-                                  "Skin Type",
-                                  _resultType.isNotEmpty ? _resultType : null,
-                                  _skinTypes,
-                                  (newValue) {
-                                    setState(() {
-                                      _resultType = newValue!;
-                                    });
-                                  },
-                                ),
-                                _buildFieldselct(
-                                  "Skin Tone",
-                                  _resultTone.isNotEmpty ? _resultTone : null,
-                                  _skinTones,
-                                  (newValue) {
-                                    setState(() {
-                                      _resultTone = newValue!;
-                                    });
-                                  },
-                                ),
-                                _buildFieldselct(
-                                  "Wrinkles",
-                                  _resultWrinkle.isNotEmpty
-                                      ? _resultWrinkle
-                                      : null,
-                                  _wrinkleLabels,
-                                  (newValue) {
-                                    setState(() {
-                                      _resultWrinkle = newValue!;
-                                    });
-                                  },
-                                ),
-                                _buildField(
-                                  "Precaution",
-                                  '${_precautions}',
-                                  Colors.black,
-                                ),
-                              ],
+                              _buildField(
+                                "Acne Status",
+                                '${_resultAcne}',
+                                Colors.black,
+                              ),
+                              _buildFieldselct(
+                                "Skin Type",
+                                _resultType.isNotEmpty ? _resultType : null,
+                                _skinTypes,
+                                (newValue) {
+                                  setState(() {
+                                    _resultType = newValue!;
+                                  });
+                                },
+                              ),
+                              _buildFieldselct(
+                                "Skin Tone",
+                                _resultTone.isNotEmpty ? _resultTone : null,
+                                _skinTones,
+                                (newValue) {
+                                  setState(() {
+                                    _resultTone = newValue!;
+                                  });
+                                },
+                              ),
+                              _buildFieldselct(
+                                "Wrinkles",
+                                _resultWrinkle.isNotEmpty
+                                    ? _resultWrinkle
+                                    : null,
+                                _wrinkleLabels,
+                                (newValue) {
+                                  setState(() {
+                                    _resultWrinkle = newValue!;
+                                  });
+                                },
+                              ),
+                              _buildField(
+                                "Precaution",
+                                '${_precautions}',
+                                Colors.black,
+                              ),
+                              SizedBox(height: 5),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  GestureDetector(
+                                    onTap: _saveData,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.deepPurple.shade100,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      height: 45,
+                                      width: 100,
+                                      child: Center(
+                                        child: Text(
+                                          "Save",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                  // SizedBox(width: 10),
+                                  // ElevatedButton.icon(
+                                  //   onPressed:
+                                  //       _isLoading ? null : () => _pickImage(ImageSource.gallery),
+                                  //   icon: Icon(Icons.image),
+                                  //   label: Text("Gallery"),
+                                  // ),
+                                ],
+                              ),
                             ],
                           ),
                         )
@@ -707,105 +529,24 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
                   ),
                 ),
 
-            if (_resultAcne.isNotEmpty ||
-                _resultType.isNotEmpty ||
-                _resultTone.isNotEmpty ||
-                _resultWrinkle.isNotEmpty ||
-                _precautions.isNotEmpty)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton(onPressed: _saveData, child: Text("Save")),
+            SizedBox(height: 70),
 
-                  // SizedBox(width: 10),
-                  // ElevatedButton.icon(
-                  //   onPressed:
-                  //       _isLoading ? null : () => _pickImage(ImageSource.gallery),
-                  //   icon: Icon(Icons.image),
-                  //   label: Text("Gallery"),
-                  // ),
-                ],
-              ),
-            SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => FaceDetectionPage()),
-                );
-              },
-              icon: Icon(Icons.image),
-              label: Text("Gallery"),
-            ),
+            // ElevatedButton.icon(
+            //   onPressed: () {
+            //     Navigator.push(
+            //       context,
+            //       MaterialPageRoute(builder: (context) => FaceDetectionPage()),
+            //     );
+            //   },
+            //   icon: Icon(Icons.image),
+            //   label: Text("Gallery"),
+            // ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCameraUI() {
-    if (_image != null) {
-      return Center(
-        child: Stack(
-          alignment: Alignment.bottomCenter,
-          children: [
-            GestureDetector(
-              onTap: () async {
-                await controller.startImageStream();
-                setState(() => _image = null);
-              },
-              child:
-                  _isLoading
-                      ? _buildShimmerEffect()
-                      : (_image != null
-                          ? Image.file(
-                            _image!,
-                            height: 200,
-                            width: 200,
-                            fit: BoxFit.cover,
-                          )
-                          : Icon(Icons.image, size: 200, color: Colors.grey)),
-            ),
-          ],
-        ),
-      );
-    }
-    return SmartFaceCamera(
-      controller: controller,
-      messageBuilder: (context, face) {
-        if (face == null) return _message('Place your face in the camera');
-        if (!face.wellPositioned)
-          return _message('Center your face in the square');
-        return const SizedBox.shrink();
-      },
-    );
-  }
-  String getActionDescription(String action) {
-    switch (action) {
-      case 'smile':
-        return 'smile';
-      case 'blink':
-        return 'blink';
-      case 'lookRight':
-        return 'look right';
-      case 'lookLeft':
-        return 'look left';
-      default:
-        return '';
-    }
-  }
-  Widget _message(String msg) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 55, vertical: 15),
-    child: Text(
-      msg,
-      textAlign: TextAlign.center,
-      style: const TextStyle(
-        fontSize: 14,
-        height: 1.5,
-        fontWeight: FontWeight.w400,
-      ),
-    ),
-  );
   Widget _buildField(String label, String value, Color textColor) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
@@ -907,9 +648,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
     _skinTypeInterpreter?.close();
     _skinToneInterpreter?.close();
     _faceDetector?.close();
-    cameraController.stopImageStream();
 
-    cameraController.dispose();
     super.dispose();
   }
 }

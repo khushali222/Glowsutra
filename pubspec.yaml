@@ -52,6 +52,7 @@ dependencies:
   shimmer:
   camera:
   face_camera:
+  fluttertoast:
 
 
 

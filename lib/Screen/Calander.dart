@@ -387,28 +387,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       }).toList(),
                 ),
               ),
-            // Expanded(
-            //   child: ListView(
-            //     children:
-            //         (_reminders[_selectedDate] ?? []).map((reminder) {
-            //           return ListTile(
-            //             title: Text(reminder),
-            //             trailing: IconButton(
-            //               icon: Icon(Icons.delete),
-            //               onPressed: () {
-            //                 setState(() {
-            //                   _reminders[_selectedDate]!.remove(reminder);
-            //                   if (_reminders[_selectedDate]!.isEmpty) {
-            //                     _reminders.remove(_selectedDate);
-            //                   }
-            //                   _saveReminders();
-            //                 });
-            //               },
-            //             ),
-            //           );
-            //         }).toList(),
-            //   ),
-            // ),
+
           ],
         ),
       ),
