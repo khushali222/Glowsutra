@@ -7,6 +7,8 @@ import 'package:timezone/timezone.dart' as tz;
 import 'dart:convert';
 import 'package:easy_date_timeline/easy_date_timeline.dart';
 
+import '../Serviece/notification_service.dart';
+
 class CalendarScreen extends StatefulWidget {
   @override
   _CalendarScreenState createState() => _CalendarScreenState();
@@ -18,6 +20,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Map<DateTime, List<String>> _reminders = {};
   FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
+  List<String> _unreadNotifications = [];
 
   Map<String, bool> _presetReminders = {
     "Water Intake": false,
@@ -32,61 +35,39 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _calendarFormat = CalendarFormat.month;
     tz.initializeTimeZones();
     _initializeNotifications();
-    _loadReminders(); // ✅ Load reminders when screen opens
+    WidgetsFlutterBinding.ensureInitialized();
+    requestNotificationPermission();
+    _loadReminders();
     _loadPresetSettings();
+    _loadUnreadNotifications();
   }
 
-  Future<void> _initializeNotifications() async {
-    const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+  Future<void> requestNotificationPermission() async {
+    FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+        FlutterLocalNotificationsPlugin();
 
-    const InitializationSettings settings = InitializationSettings(
-      android: androidSettings,
-    );
+    final result =
+        await flutterLocalNotificationsPlugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >()
+            ?.requestNotificationsPermission();
 
-    await _notificationsPlugin.initialize(settings);
-  }
-
-  Future<void> _scheduleNotification(
-    String reminder,
-    DateTime scheduledTime,
-  ) async {
-    final now = DateTime.now();
-
-    // ✅ Ensure the notification is scheduled for a future time
-    if (scheduledTime.isBefore(now)) {
-      print("🚨 Error: Scheduled time must be in the future!");
-      return; // ❌ Prevent scheduling notifications in the past
+    if (result != null && result) {
+      print("✅ Notification Permission Granted!");
+    } else {
+      print("🚨 Notification Permission Denied!");
     }
-
-    final androidDetails = AndroidNotificationDetails(
-      'reminder_channel',
-      'Reminders',
-      importance: Importance.high,
-      priority: Priority.high,
-    );
-
-    final details = NotificationDetails(android: androidDetails);
-
-    await _notificationsPlugin.zonedSchedule(
-      0, // Change the ID to 0 or any unique value
-      'Skincare Reminder',
-      reminder,
-      tz.TZDateTime.from(
-        scheduledTime,
-        tz.local,
-      ), // ✅ Ensured it's in the future
-      details,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-    );
   }
 
-  Future<void> _saveReminders() async {
+  Future<void> _loadPresetSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    Map<String, List<String>> formattedReminders = _reminders.map(
-      (key, value) => MapEntry(key.toIso8601String(), value),
-    );
-    await prefs.setString('reminders', jsonEncode(formattedReminders));
+    final String? savedPresets = prefs.getString('presetReminders');
+    if (savedPresets != null) {
+      setState(() {
+        _presetReminders = Map<String, bool>.from(jsonDecode(savedPresets));
+      });
+    }
   }
 
   Future<void> _loadReminders() async {
@@ -103,84 +84,69 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  Future<void> _savePresetSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('presetReminders', jsonEncode(_presetReminders));
+  Future<void> _initializeNotifications() async {
+    const AndroidInitializationSettings androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    final InitializationSettings settings = InitializationSettings(
+      android: androidSettings,
+    );
+
+    await _notificationsPlugin.initialize(
+      settings,
+      onDidReceiveNotificationResponse: (response) {
+        _markNotificationAsRead(response.payload);
+      },
+    );
   }
 
-  Future<void> _loadPresetSettings() async {
+  Future<void> _scheduleNotification(
+    String reminder,
+    DateTime scheduledTime,
+  ) async {
+    final androidDetails = AndroidNotificationDetails(
+      'reminder_channel',
+      'Reminders',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+
+    final details = NotificationDetails(android: androidDetails);
+
+    await _notificationsPlugin.zonedSchedule(
+      reminder.hashCode,
+      'Skincare Reminder',
+      reminder,
+      tz.TZDateTime.from(scheduledTime, tz.local),
+      details,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+    _saveUnreadNotification(reminder);
+  }
+
+  Future<void> _saveUnreadNotification(String notification) async {
     final prefs = await SharedPreferences.getInstance();
-    final String? savedPresets = prefs.getString('presetReminders');
-    if (savedPresets != null) {
-      setState(() {
-        _presetReminders = Map<String, bool>.from(jsonDecode(savedPresets));
-      });
+    _unreadNotifications.add(notification);
+    await prefs.setStringList('unreadNotifications', _unreadNotifications);
+    setState(() {});
+  }
+
+  Future<void> _loadUnreadNotifications() async {
+    final prefs = await SharedPreferences.getInstance();
+    _unreadNotifications = prefs.getStringList('unreadNotifications') ?? [];
+    setState(() {});
+  }
+
+  Future<void> _markNotificationAsRead(String? notification) async {
+    if (notification != null) {
+      _unreadNotifications.remove(notification);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList('unreadNotifications', _unreadNotifications);
+      setState(() {});
     }
   }
 
-  Future<void> _togglePresetReminder(String reminder, bool enabled) async {
-    setState(() {
-      _presetReminders[reminder] = enabled;
-    });
-
-    if (enabled) {
-      final now = DateTime.now();
-      DateTime scheduledTime = DateTime(now.year, now.month, now.day, 8, 0);
-
-      // ✅ Move to the next day if 8:00 AM has already passed
-      if (scheduledTime.isBefore(now)) {
-        scheduledTime = scheduledTime.add(Duration(days: 1));
-      }
-
-      _scheduleNotification(reminder, scheduledTime);
-      setState(() {
-        _reminders[_selectedDate] ??= [];
-        _reminders[_selectedDate]!.add(reminder);
-      });
-    } else {
-      setState(() {
-        _reminders[_selectedDate]?.remove(reminder);
-        if (_reminders[_selectedDate]?.isEmpty ?? true) {
-          _reminders.remove(_selectedDate);
-        }
-      });
-    }
-
-    _saveReminders();
-    _savePresetSettings();
-  }
-
-  // Future<void> _togglePresetReminder(String reminder, bool enabled) async {
-  //   setState(() {
-  //     _presetReminders[reminder] = enabled;
-  //   });
-  //
-  //   if (enabled) {
-  //     final now = DateTime.now();
-  //     final scheduledTime = DateTime(now.year, now.month, now.day, 14, 30); // 2:30 PM today
-  //
-  //     if (scheduledTime.isBefore(now)) {
-  //       print("🚨 Error: Cannot schedule notification in the past!");
-  //       return;
-  //     }
-  //
-  //     _scheduleNotification(reminder, scheduledTime);
-  //     setState(() {
-  //       _reminders[_selectedDate] ??= [];
-  //       _reminders[_selectedDate]!.add(reminder);
-  //     });
-  //   } else {
-  //     setState(() {
-  //       _reminders[_selectedDate]?.remove(reminder);
-  //       if (_reminders[_selectedDate]?.isEmpty ?? true) {
-  //         _reminders.remove(_selectedDate);
-  //       }
-  //     });
-  //   }
-  //
-  //   _saveReminders();
-  //   _savePresetSettings();
-  // }
   Future<void> _addReminder() async {
     final TimeOfDay? pickedTime = await showTimePicker(
       context: context,
@@ -232,55 +198,52 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  // Future<void> _addReminder() async {
-  //   final TimeOfDay? pickedTime = await showTimePicker(
-  //     context: context,
-  //     initialTime: TimeOfDay.now(),
-  //   );
-  //
-  //   if (pickedTime != null) {
-  //     final DateTime scheduledDateTime = DateTime(
-  //       _selectedDate.year,
-  //       _selectedDate.month,
-  //       _selectedDate.day,
-  //       pickedTime.hour,
-  //       pickedTime.minute,
-  //     );
-  //
-  //     TextEditingController reminderController = TextEditingController();
-  //     showDialog(
-  //       context: context,
-  //       builder:
-  //           (context) => AlertDialog(
-  //             title: Text("Add Reminder"),
-  //             content: TextField(
-  //               controller: reminderController,
-  //               decoration: InputDecoration(hintText: "Enter reminder"),
-  //             ),
-  //             actions: [
-  //               TextButton(
-  //                 onPressed: () {
-  //                   if (reminderController.text.isNotEmpty) {
-  //                     setState(() {
-  //                       _reminders[_selectedDate] ??= [];
-  //                       _reminders[_selectedDate]!.add(reminderController.text);
-  //                     });
-  //
-  //                     _scheduleNotification(
-  //                       reminderController.text,
-  //                       scheduledDateTime,
-  //                     );
-  //                     _saveReminders();
-  //                   }
-  //                   Navigator.pop(context);
-  //                 },
-  //                 child: Text("Save"),
-  //               ),
-  //             ],
-  //           ),
-  //     );
-  //   }
-  // }
+  Future<void> _saveReminders() async {
+    final prefs = await SharedPreferences.getInstance();
+    Map<String, List<String>> formattedReminders = _reminders.map(
+      (key, value) => MapEntry(key.toIso8601String(), value),
+    );
+    await prefs.setString('reminders', jsonEncode(formattedReminders));
+  }
+
+  Future<void> _togglePresetReminder(String reminder, bool enabled) async {
+    setState(() {
+      _presetReminders[reminder] = enabled;
+    });
+
+    if (enabled) {
+      final now = DateTime.now();
+      final scheduledTime = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        14,
+        30,
+      ); // 2:30 PM today
+
+      if (scheduledTime.isBefore(now)) {
+        print("🚨 Error: Cannot schedule notification in the past!");
+        return;
+      }
+
+      _scheduleNotification(reminder, scheduledTime);
+      setState(() {
+        _reminders[_selectedDate] ??= [];
+        _reminders[_selectedDate]!.add(reminder);
+      });
+    } else {
+      setState(() {
+        _reminders[_selectedDate]?.remove(reminder);
+        if (_reminders[_selectedDate]?.isEmpty ?? true) {
+          _reminders.remove(_selectedDate);
+        }
+      });
+    }
+
+    _saveReminders();
+    _savePresetSettings();
+  }
+
   List<MapEntry<DateTime, String>> _getTodaysReminders() {
     DateTime today = DateTime.now();
     List<MapEntry<DateTime, String>> todayReminders = [];
@@ -314,6 +277,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
     await prefs.setString('reminders', jsonEncode(encodedReminders));
   }
 
+  Future<void> _savePresetSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('presetReminders', jsonEncode(_presetReminders));
+  }
+
   @override
   Widget build(BuildContext context) {
     List<MapEntry<DateTime, String>> todaysReminders = _getTodaysReminders();
@@ -335,8 +303,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
               },
               activeColor: Colors.deepPurple[100],
             ),
-
-            // ✅ Preset Routine Cards
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Column(
@@ -387,28 +353,29 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       }).toList(),
                 ),
               ),
-            // Expanded(
-            //   child: ListView(
-            //     children:
-            //         (_reminders[_selectedDate] ?? []).map((reminder) {
-            //           return ListTile(
-            //             title: Text(reminder),
-            //             trailing: IconButton(
-            //               icon: Icon(Icons.delete),
-            //               onPressed: () {
-            //                 setState(() {
-            //                   _reminders[_selectedDate]!.remove(reminder);
-            //                   if (_reminders[_selectedDate]!.isEmpty) {
-            //                     _reminders.remove(_selectedDate);
-            //                   }
-            //                   _saveReminders();
-            //                 });
-            //               },
-            //             ),
-            //           );
-            //         }).toList(),
-            //   ),
-            // ),
+
+            ElevatedButton(
+              onPressed: () {
+                DateTime scheduledTime = DateTime.now().add(
+                  Duration(seconds: 10),
+                );
+                NotificationService().scheduleNotification(
+                  title: "Reminder",
+                  body: "Drink water!",
+                  scheduledTime: scheduledTime,
+                );
+              },
+              child: Text("Schedule Notification"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                NotificationService().showNotification(
+                  title: "Reminder",
+                  body: "It's time for your skincare routine!",
+                );
+              },
+              child: Text("Show Notification"),
+            ),
           ],
         ),
       ),

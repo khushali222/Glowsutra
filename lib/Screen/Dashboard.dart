@@ -1,9 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'Calander.dart';
+import 'notification.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -14,17 +16,20 @@ class Dashboard extends StatefulWidget {
 
 class _DashboardState extends State<Dashboard> {
   Map<DateTime, List<String>> _reminders = {};
-
+  List<String> _unreadNotifications = [];
+  FlutterLocalNotificationsPlugin _notificationsPlugin =
+      FlutterLocalNotificationsPlugin();
   @override
   void initState() {
     super.initState();
+    _initializeNotifications();
     _loadReminders(); // Load reminders when dashboard starts
   }
 
   Future<void> _loadReminders() async {
     final prefs = await SharedPreferences.getInstance();
     final String? savedReminders = prefs.getString('reminders');
-  print("reminder${savedReminders}");
+    print("reminder${savedReminders}");
     if (savedReminders != null) {
       Map<String, dynamic> decodedReminders = jsonDecode(savedReminders);
       setState(() {
@@ -33,6 +38,8 @@ class _DashboardState extends State<Dashboard> {
         });
       });
     }
+    _unreadNotifications = prefs.getStringList('unreadNotifications') ?? [];
+    setState(() {});
   }
 
   List<MapEntry<DateTime, String>> _getTodaysReminders() {
@@ -68,6 +75,36 @@ class _DashboardState extends State<Dashboard> {
     await prefs.setString('reminders', jsonEncode(encodedReminders));
   }
 
+  Future<void> _markNotificationAsRead(String? notification) async {
+    if (notification != null) {
+      setState(() {
+        _unreadNotifications.remove(notification);
+      });
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(
+        'unreadNotifications',
+        _unreadNotifications,
+      ); // Save updated list to storage
+    }
+  }
+
+  Future<void> _initializeNotifications() async {
+    const AndroidInitializationSettings androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    final InitializationSettings settings = InitializationSettings(
+      android: androidSettings,
+    );
+
+    await _notificationsPlugin.initialize(
+      settings,
+      onDidReceiveNotificationResponse: (response) {
+        _markNotificationAsRead(response.payload);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     List<MapEntry<DateTime, String>> todaysReminders = _getTodaysReminders();
@@ -75,9 +112,33 @@ class _DashboardState extends State<Dashboard> {
       drawer: Drawer(),
       appBar: AppBar(
         backgroundColor: Colors.deepPurple[100],
-
         title: Text("Dashboard"),
         actions: [
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => NotificationScreen(
+                        notifications: _unreadNotifications,
+                        onClear: () async {
+                          setState(() {
+                            _unreadNotifications.clear();
+                          });
+
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setStringList('unreadNotifications', []);
+                        },
+                      ),
+                ),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Icon(Icons.notifications),
+            ),
+          ),
           Padding(padding: const EdgeInsets.all(10), child: Icon(Icons.person)),
         ],
       ),
@@ -104,7 +165,10 @@ class _DashboardState extends State<Dashboard> {
                   children: [
                     Text(
                       "Today's Reminders",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
