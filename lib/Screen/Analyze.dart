@@ -32,6 +32,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
   String _resultWrinkle = "";
   String _precautions = "";
   bool _isLoading = false;
+  bool _isloading = false;
   bool _isError = false;
   String _imagePath = "";
   final ImagePicker _picker = ImagePicker();
@@ -58,6 +59,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
         enableLandmarks: false,
       ),
     );
+    _isloading = true;
     _loadSavedData();
   }
 
@@ -292,6 +294,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
       if (_imagePath.isNotEmpty) {
         _image = File(_imagePath);
       }
+      _isloading = false;
       print(" acne $_resultAcne");
     });
   }
@@ -372,178 +375,197 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
         backgroundColor: Colors.deepPurple[100],
       ),
 
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            GestureDetector(
-              onTap: () => _pickImage(ImageSource.gallery),
-              child:
-                  _isLoading
-                      ? _buildShimmerEffect()
-                      : (_image != null
-                          ?
-                  Padding(
-                            padding: const EdgeInsets.only(top: 10),
-                            child: Image.file(
-                              _image!,
-                              height: 200,
-                              width: 200,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                          : Icon(Icons.image, size: 200, color: Colors.grey)),
-            ),
-            if (_isLoading) _buildProgressBar(),
-            if (_isError)
-              Padding(
-                padding: const EdgeInsets.all(10.0),
-                child: Text(
-                  "Error: No face detected! Please try again",
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            _isLoading
-                ? Center(
-                  child: SpinKitFadingCircle(
-                    color: Colors.deepPurple.shade100,
-                    size: 50.0,
-                  ),
-                )
-                : Padding(
-                  padding: const EdgeInsets.only(
-                    left: 16,
-                    right: 16,
-                    top: 16,
-                    bottom: 5,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (_resultAcne.isNotEmpty ||
-                          _resultType.isNotEmpty ||
-                          _resultTone.isNotEmpty ||
-                          _resultWrinkle.isNotEmpty ||
-                          _precautions.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 10, right: 10),
+      body:
+          _isloading
+              ? SpinKitCircle(color: Colors.black)
+              : SingleChildScrollView(
+                child: Column(
+                  children: [
+                    GestureDetector(
+                      onTap: () => _pickImage(ImageSource.gallery),
+                      child:
+                          _isLoading
+                              ? _buildShimmerEffect()
+                              : (_image != null
+                                  ? Padding(
+                                    padding: const EdgeInsets.only(top: 10),
+                                    child: Image.file(
+                                      _image!,
+                                      height: 200,
+                                      width: 200,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                  : Icon(
+                                    Icons.image,
+                                    size: 200,
+                                    color: Colors.grey,
+                                  )),
+                    ),
+                    if (_isLoading) _buildProgressBar(),
+                    if (_isError)
+                      Padding(
+                        padding: const EdgeInsets.all(10.0),
+                        child: Text(
+                          "Error: No face detected! Please try again",
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    _isLoading
+                        ? Center(
+                          child: SpinKitFadingCircle(
+                            color: Colors.deepPurple.shade100,
+                            size: 50.0,
+                          ),
+                        )
+                        : Padding(
+                          padding: const EdgeInsets.only(
+                            left: 16,
+                            right: 16,
+                            top: 16,
+                            bottom: 5,
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildField(
-                                "Acne Status",
-                                '${_resultAcne}',
-                                Colors.black,
-                              ),
-                              _buildFieldselct(
-                                "Skin Type",
-                                _resultType.isNotEmpty ? _resultType : null,
-                                _skinTypes,
-                                (newValue) {
-                                  setState(() {
-                                    _resultType = newValue!;
-                                  });
-                                },
-                              ),
-                              _buildFieldselct(
-                                "Skin Tone",
-                                _resultTone.isNotEmpty ? _resultTone : null,
-                                _skinTones,
-                                (newValue) {
-                                  setState(() {
-                                    _resultTone = newValue!;
-                                  });
-                                },
-                              ),
-                              _buildFieldselct(
-                                "Wrinkles",
-                                _resultWrinkle.isNotEmpty
-                                    ? _resultWrinkle
-                                    : null,
-                                _wrinkleLabels,
-                                (newValue) {
-                                  setState(() {
-                                    _resultWrinkle = newValue!;
-                                  });
-                                },
-                              ),
-                              _buildField(
-                                "Precaution",
-                                '${_precautions}',
-                                Colors.black,
-                              ),
-                              SizedBox(height: 5),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  GestureDetector(
-                                    onTap: _saveData,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.deepPurple.shade100,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      height: 45,
-                                      width: 100,
-                                      child: Center(
-                                        child: Text(
-                                          "Save",
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
+                              if (_image != null ||
+                                  _resultAcne.isNotEmpty ||
+                                  _resultType.isNotEmpty ||
+                                  _resultTone.isNotEmpty ||
+                                  _resultWrinkle.isNotEmpty ||
+                                  _precautions.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 10,
+                                    right: 10,
                                   ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      _buildField(
+                                        "Acne Status",
+                                        '${_resultAcne}',
+                                        Colors.black,
+                                      ),
+                                      _buildFieldselct(
+                                        "Skin Type",
+                                        _resultType.isNotEmpty
+                                            ? _resultType
+                                            : null,
+                                        _skinTypes,
+                                        (newValue) {
+                                          setState(() {
+                                            _resultType = newValue!;
+                                          });
+                                        },
+                                      ),
+                                      _buildFieldselct(
+                                        "Skin Tone",
+                                        _resultTone.isNotEmpty
+                                            ? _resultTone
+                                            : null,
+                                        _skinTones,
+                                        (newValue) {
+                                          setState(() {
+                                            _resultTone = newValue!;
+                                          });
+                                        },
+                                      ),
+                                      _buildFieldselct(
+                                        "Wrinkles",
+                                        _resultWrinkle.isNotEmpty
+                                            ? _resultWrinkle
+                                            : null,
+                                        _wrinkleLabels,
+                                        (newValue) {
+                                          setState(() {
+                                            _resultWrinkle = newValue!;
+                                          });
+                                        },
+                                      ),
+                                      _buildField(
+                                        "Precaution",
+                                        '${_precautions}',
+                                        Colors.black,
+                                      ),
+                                      SizedBox(height: 5),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          GestureDetector(
+                                            onTap: _saveData,
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                color:
+                                                    Colors.deepPurple.shade100,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              height: 45,
+                                              width: 100,
+                                              child: Center(
+                                                child: Text(
+                                                  "Save",
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
 
-                                  // SizedBox(width: 10),
-                                  // ElevatedButton.icon(
-                                  //   onPressed:
-                                  //       _isLoading ? null : () => _pickImage(ImageSource.gallery),
-                                  //   icon: Icon(Icons.image),
-                                  //   label: Text("Gallery"),
-                                  // ),
-                                ],
-                              ),
+                                          // SizedBox(width: 10),
+                                          // ElevatedButton.icon(
+                                          //   onPressed:
+                                          //       _isLoading ? null : () => _pickImage(ImageSource.gallery),
+                                          //   icon: Icon(Icons.image),
+                                          //   label: Text("Gallery"),
+                                          // ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              else
+                                Center(
+                                  child: Text(
+                                    "📸 Upload an image to analyze your skin!",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
                             ],
                           ),
-                        )
-                      else
-                        Center(
-                          child: Text(
-                            "📸 Upload an image to analyze your skin!",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
                         ),
-                    ],
-                  ),
+
+                    SizedBox(height: 70),
+
+                    // ElevatedButton.icon(
+                    //   onPressed: () {
+                    //     Navigator.push(
+                    //       context,
+                    //       MaterialPageRoute(builder: (context) => FaceDetectionPage()),
+                    //     );
+                    //   },
+                    //   icon: Icon(Icons.image),
+                    //   label: Text("Gallery"),
+                    // ),
+                  ],
                 ),
-
-            SizedBox(height: 70),
-
-            // ElevatedButton.icon(
-            //   onPressed: () {
-            //     Navigator.push(
-            //       context,
-            //       MaterialPageRoute(builder: (context) => FaceDetectionPage()),
-            //     );
-            //   },
-            //   icon: Icon(Icons.image),
-            //   label: Text("Gallery"),
-            // ),
-          ],
-        ),
-      ),
+              ),
     );
   }
 

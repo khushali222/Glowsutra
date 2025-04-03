@@ -335,7 +335,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               },
               activeColor: Colors.deepPurple[100],
             ),
-        
+
             // ✅ Preset Routine Cards
             Padding(
               padding: const EdgeInsets.all(8.0),
@@ -358,7 +358,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     }).toList(),
               ),
             ),
-        
+
             // ✅ List of reminders for the selected date
             if (todaysReminders.isNotEmpty)
               Padding(
@@ -368,7 +368,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       todaysReminders.map((entry) {
                         DateTime reminderDate = entry.key;
                         String reminderText = entry.value;
-        
+
                         return Card(
                           elevation: 4,
                           margin: EdgeInsets.symmetric(vertical: 6),
@@ -387,7 +387,28 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       }).toList(),
                 ),
               ),
-
+            // Expanded(
+            //   child: ListView(
+            //     children:
+            //         (_reminders[_selectedDate] ?? []).map((reminder) {
+            //           return ListTile(
+            //             title: Text(reminder),
+            //             trailing: IconButton(
+            //               icon: Icon(Icons.delete),
+            //               onPressed: () {
+            //                 setState(() {
+            //                   _reminders[_selectedDate]!.remove(reminder);
+            //                   if (_reminders[_selectedDate]!.isEmpty) {
+            //                     _reminders.remove(_selectedDate);
+            //                   }
+            //                   _saveReminders();
+            //                 });
+            //               },
+            //             ),
+            //           );
+            //         }).toList(),
+            //   ),
+            // ),
           ],
         ),
       ),
