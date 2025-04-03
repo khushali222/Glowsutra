@@ -1,10 +1,16 @@
 import 'dart:convert';
 
+import 'package:carousel_slider/carousel_options.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 import 'Calander.dart';
+import 'Profile.dart';
+import 'Skincaretips.dart';
 import 'notification.dart';
 
 class Dashboard extends StatefulWidget {
@@ -29,7 +35,7 @@ class _DashboardState extends State<Dashboard> {
   Future<void> _loadReminders() async {
     final prefs = await SharedPreferences.getInstance();
     final String? savedReminders = prefs.getString('reminders');
-    print("reminder${savedReminders}");
+
     if (savedReminders != null) {
       Map<String, dynamic> decodedReminders = jsonDecode(savedReminders);
       setState(() {
@@ -105,6 +111,12 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
+  int activeIndex = 0;
+  final List<String> imageUrls = [
+    'https://images.pexels.com/photos/31361995/pexels-photo-31361995/free-photo-of-artistic-makeup-with-floral-accents-in-park-setting.jpeg?auto=compress&cs=tinysrgb&w=600',
+    'https://img.freepik.com/free-photo/medium-shot-woman-practicing-selfcare_23-2150229552.jpg?ga=GA1.1.92241902.1743491671&semt=ais_hybrid&w=740',
+    'https://img.freepik.com/free-photo/medium-shot-woman-practicing-selfcare_23-2150396201.jpg?ga=GA1.1.92241902.1743491671&semt=ais_hybrid&w=740',
+  ];
   @override
   Widget build(BuildContext context) {
     List<MapEntry<DateTime, String>> todaysReminders = _getTodaysReminders();
@@ -115,8 +127,8 @@ class _DashboardState extends State<Dashboard> {
         title: Text("Dashboard"),
         actions: [
           GestureDetector(
-            onTap: () {
-              Navigator.push(
+            onTap: () async {
+              await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder:
@@ -133,13 +145,47 @@ class _DashboardState extends State<Dashboard> {
                       ),
                 ),
               );
+              _loadReminders(); // Reload notifications after returning
+              setState(() {});
             },
             child: Padding(
               padding: const EdgeInsets.all(10),
-              child: Icon(Icons.notifications),
+              child: Stack(
+                children: [
+                  FaIcon(FontAwesomeIcons.bell, size: 20, color: Colors.black),
+                  // Icon(Icons.notifications, size: 28), // Notification Icon
+                  if (_unreadNotifications.isNotEmpty)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        padding: EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: BoxConstraints(
+                          minWidth: 10,
+                          minHeight: 10,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
-          Padding(padding: const EdgeInsets.all(10), child: Icon(Icons.person)),
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => Profile()),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Icon(Icons.person, size: 25, color: Colors.black),
+            ),
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -157,6 +203,43 @@ class _DashboardState extends State<Dashboard> {
                 "Analyze your skin and get personalized recommendations.",
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16, color: Colors.black54),
+              ),
+              SizedBox(height: 20),
+              CarouselSlider(
+                options: CarouselOptions(
+                  height: 200,
+                  autoPlay: true,
+                  autoPlayInterval: Duration(seconds: 3),
+                  enlargeCenterPage: true,
+                  enableInfiniteScroll: true,
+                  onPageChanged: (index, reason) {
+                    setState(() {
+                      activeIndex = index;
+                    });
+                  },
+                ),
+                items:
+                    imageUrls.map((url) {
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(15),
+                        child: Image.network(
+                          url,
+                          fit: BoxFit.cover,
+                          width: 1000,
+                        ),
+                      );
+                    }).toList(),
+              ),
+              const SizedBox(height: 10),
+              AnimatedSmoothIndicator(
+                activeIndex: activeIndex,
+                count: imageUrls.length,
+                effect: ExpandingDotsEffect(
+                  dotHeight: 8,
+                  dotWidth: 8,
+                  activeDotColor: Colors.pink,
+                  dotColor: Colors.grey.shade300,
+                ),
               ),
               SizedBox(height: 20),
               Padding(
@@ -185,9 +268,18 @@ class _DashboardState extends State<Dashboard> {
                           elevation: 4,
                           margin: EdgeInsets.symmetric(vertical: 6),
                           child: ListTile(
+                            leading: FaIcon(
+                              FontAwesomeIcons.stopwatch,
+                              size: 20,
+                              color: Colors.deepPurple,
+                            ),
                             title: Text(reminderText),
                             trailing: IconButton(
-                              icon: Icon(Icons.delete, color: Colors.red),
+                              icon: FaIcon(
+                                FontAwesomeIcons.trashCan,
+                                size: 18,
+                                color: Colors.red,
+                              ),
                               onPressed: () {
                                 _removeReminder(reminderDate, reminderText);
                               },
@@ -202,28 +294,6 @@ class _DashboardState extends State<Dashboard> {
                   style: TextStyle(color: Colors.grey),
                 ),
               SizedBox(height: 20),
-              // 🔹 Reminder Card
-              Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ListTile(
-                  leading: Icon(Icons.notifications, color: Colors.deepPurple),
-                  title: Text("Upcoming Reminder"),
-                  subtitle: Text("Water Intake - Today at 2:30 PM"),
-                  trailing: Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    // Navigate to Calendar/Schedule Page
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => CalendarScreen()),
-                    );
-                  },
-                ),
-              ),
-              SizedBox(height: 15),
-
               // 🔹 Skincare Schedule Navigation
               Card(
                 elevation: 4,
@@ -253,16 +323,42 @@ class _DashboardState extends State<Dashboard> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: ListTile(
+                  leading: FaIcon(
+                    FontAwesomeIcons.bottleWater,
+                    size: 20,
+                    color: Colors.deepPurple,
+                  ),
+                  title: Text("Water Intake"),
+                  subtitle: Text("Get Water Intake Schedule"),
+                  trailing: Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => CalendarScreen()),
+                    );
+                  },
+                ),
+              ),
+              SizedBox(height: 12),
+              Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: ListTile(
                   leading: Icon(Icons.spa, color: Colors.deepPurple),
                   title: Text("Skincare Tips"),
                   subtitle: Text("Get personalized skincare tips"),
                   trailing: Icon(Icons.arrow_forward_ios),
                   onTap: () {
-                    // Navigate to Skincare Tips Page (if available)
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => Skincaretips()),
+                    );
                   },
                 ),
               ),
-              SizedBox(height: 20),
+              SizedBox(height: 80),
             ],
           ),
         ),

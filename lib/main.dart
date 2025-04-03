@@ -9,8 +9,7 @@ import 'Serviece/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // await requestNotificationPermission();
-  await NotificationService().init();
+
   runApp(
     // MyApp(),
     DevicePreview(
@@ -19,24 +18,6 @@ void main() async {
       builder: (context) => MyApp(),
     ),
   );
-}
-
-Future<void> requestNotificationPermission() async {
-  FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
-
-  final result =
-      await flutterLocalNotificationsPlugin
-          .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin
-          >()
-          ?.requestNotificationsPermission();
-
-  if (result != null && result) {
-    print("✅ Notification Permission Granted!");
-  } else {
-    print("🚨 Notification Permission Denied!");
-  }
 }
 
 // void main() {
