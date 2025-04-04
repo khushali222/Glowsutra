@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -118,6 +120,32 @@ class _CalendarScreenState extends State<CalendarScreen> {
       'Reminders',
       importance: Importance.high,
       priority: Priority.high,
+      channelDescription: 'Get reminders for your skincare routine!',
+      ticker: 'Reminder Ticker',
+      icon: '@mipmap/ic_launcher', // Custom icon
+      largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+      color: Colors.deepPurple.shade100, // Accent color for notification
+      enableLights: true,
+      ledColor: Colors.purple, // LED notification color
+      ledOnMs: 1000, // LED on duration
+      ledOffMs: 500, // LED off duration
+      enableVibration: true,
+      styleInformation: BigTextStyleInformation(
+        reminder, // Expandable text for longer messages
+      ),
+      actions: <AndroidNotificationAction>[
+        const AndroidNotificationAction(
+          'MARK_DONE',
+          'Mark as Done',
+          showsUserInterface: true,
+        ),
+        const AndroidNotificationAction(
+          'DISMISS',
+          'Dismiss',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+      ],
     );
 
     final details = NotificationDetails(android: androidDetails);
@@ -140,11 +168,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
     } else {
       await _notificationsPlugin.zonedSchedule(
         reminder.hashCode,
-        'Custom Reminder',
+        'Custom Skincare Reminder',
         reminder,
         tz.TZDateTime.from(scheduledTime, tz.local),
         details,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents:
+            isRepeating
+                ? (repeatType == "daily"
+                    ? DateTimeComponents.time
+                    : (repeatType == "weekly"
+                        ? DateTimeComponents.dayOfWeekAndTime
+                        : DateTimeComponents.dayOfMonthAndTime))
+                : null, // Import
       );
     }
     _saveNotificationWhenTimeArrives(reminder, scheduledTime);
@@ -257,11 +293,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
       _presetReminders[reminder] = planType;
     });
 
-    _cancelScheduledNotifications(reminder); // Cancel existing reminders
+    _savePresetSettings(); // Save immediately
+
+    _cancelScheduledNotifications(reminder);
 
     if (planType != "off") {
       final now = DateTime.now();
-
       List<DateTime> reminderTimes = [
         DateTime(now.year, now.month, now.day, 8, 0),
         DateTime(now.year, now.month, now.day, 12, 0),
@@ -269,26 +306,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
         DateTime(now.year, now.month, now.day, 20, 0),
       ];
 
-      bool scheduledToday = false; // Flag to check if we scheduled for today
-
       for (DateTime time in reminderTimes) {
         if (time.isAfter(now)) {
-          // ✅ Schedule only if it's in the future
-          _scheduleNotification(reminder, time);
-          scheduledToday = true;
-        }
-      }
-
-      if (!scheduledToday) {
-        // ✅ If no reminders left today, schedule for tomorrow
-        for (DateTime time in reminderTimes) {
-          _scheduleNotification(reminder, time.add(Duration(days: 1)));
+          _scheduleNotification(
+            reminder,
+            time,
+            isRepeating: true,
+            repeatType: planType,
+          );
         }
       }
     }
-
-    _saveReminders();
-    _savePresetSettings();
   }
 
   List<MapEntry<DateTime, String>> _getTodaysReminders() {
@@ -330,7 +358,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> _cancelScheduledNotifications(String reminder) async {
-    await _notificationsPlugin.cancel(reminder.hashCode);
+    for (int i = 0; i < 4; i++) {
+      // Assuming max 4 schedules per day
+      await _notificationsPlugin.cancel(reminder.hashCode + i);
+    }
   }
 
   @override
@@ -451,6 +482,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                           newValue,
                                         );
                                       }
+                                      print("caalling");
                                     },
                                     icon: Icon(
                                       Icons.arrow_drop_down,

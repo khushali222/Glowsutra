@@ -493,6 +493,18 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
                                         '${_precautions}',
                                         Colors.black,
                                       ),
+                                      // SizedBox(height: 5),
+                                      // Row(
+                                      //   children: [
+                                      //     Text(
+                                      //       "Skin Analyze Report",
+                                      //       style: TextStyle(
+                                      //         fontSize: 17,
+                                      //         fontWeight: FontWeight.bold,
+                                      //       ),
+                                      //     ),
+                                      //   ],
+                                      // ),
                                       SizedBox(height: 5),
                                       Row(
                                         mainAxisAlignment:

@@ -46,9 +46,25 @@ class _SkincaretipsState extends State<Skincaretips> {
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 15),
               ),
+              SizedBox(height: 20),
+            ],
+          ),
+          Column(
+            children: [
+              Text(
+                "Dry skin?",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              SizedBox(height: 10),
+              Text(
+                "Hydrate with a rich moisturizer and drink plenty of water to keep your skin nourished",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 15),
+              ),
               SizedBox(height: 50),
             ],
           ),
+
         ],
       ),
     );
