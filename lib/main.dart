@@ -4,12 +4,14 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:glow_sutra/Screen/home.dart';
 
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'Screen/Splash_Screen.dart';
+import 'Screen/onborading_screen.dart';
 import 'Serviece/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   runApp(
     // MyApp(),
     DevicePreview(
@@ -36,6 +38,6 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(debugShowCheckedModeBanner: false, home: HomePage());
+    return MaterialApp(debugShowCheckedModeBanner: false, home: SplashScreen());
   }
 }

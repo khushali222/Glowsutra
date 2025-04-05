@@ -37,6 +37,23 @@ class _DashboardState extends State<Dashboard> {
     _loadWaterIntake();
   }
 
+  // Future<void> _loadReminders() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final String? savedReminders = prefs.getString('reminders');
+  //
+  //   if (savedReminders != null) {
+  //     Map<String, dynamic> decodedReminders = jsonDecode(savedReminders);
+  //     setState(() {
+  //       _reminders = decodedReminders.map((key, value) {
+  //         return MapEntry(DateTime.parse(key), List<String>.from(value));
+  //       });
+  //     });
+  //   }
+  //   _unreadNotifications = prefs.getStringList('unreadNotifications') ?? [];
+  //   setState(() {
+  //     _isLoading = false;
+  //   });
+  // }
   Future<void> _loadReminders() async {
     final prefs = await SharedPreferences.getInstance();
     final String? savedReminders = prefs.getString('reminders');
@@ -48,6 +65,13 @@ class _DashboardState extends State<Dashboard> {
           return MapEntry(DateTime.parse(key), List<String>.from(value));
         });
       });
+    }
+
+    final dynamic rawData = prefs.get('unreadNotifications');
+    if (rawData is List<String>) {
+      _unreadNotifications = rawData;
+    } else {
+      _unreadNotifications = [];
     }
     _unreadNotifications = prefs.getStringList('unreadNotifications') ?? [];
     setState(() {
@@ -288,59 +312,59 @@ class _DashboardState extends State<Dashboard> {
                             ),
                           ),
                           SizedBox(height: 20),
-                          // Padding(
-                          //   padding: const EdgeInsets.all(8.0),
-                          //   child: Row(
-                          //     children: [
-                          //       Text(
-                          //         "Water Intake Progress",
-                          //         style: TextStyle(
-                          //           fontSize: 18,
-                          //           fontWeight: FontWeight.bold,
-                          //         ),
-                          //       ),
-                          //     ],
-                          //   ),
-                          // ),
-                          // SizedBox(height: 20),
-                          // SizedBox(
-                          //   height: 150,
-                          //   child: PieChart(
-                          //     PieChartData(
-                          //       sections: [
-                          //         PieChartSectionData(
-                          //           value: getPercentage(),
-                          //           title: "${getPercentage().toInt()}%",
-                          //           color: Colors.deepPurple.shade100,
-                          //           radius: 30,
-                          //           titleStyle: TextStyle(
-                          //             fontSize: 18,
-                          //             fontWeight: FontWeight.bold,
-                          //             color: Colors.white,
-                          //           ),
-                          //         ),
-                          //         PieChartSectionData(
-                          //           value: 100 - getPercentage(),
-                          //           color: Colors.grey[300],
-                          //           radius: 25,
-                          //         ),
-                          //       ],
-                          //     ),
-                          //   ),
-                          // ),
-                          // SizedBox(height: 20),
-                          // ElevatedButton(
-                          //   onPressed: () async {
-                          //     await Navigator.push(
-                          //       context,
-                          //       MaterialPageRoute(
-                          //         builder: (context) => WaterIntakeScreen(),
-                          //       ),
-                          //     );
-                          //     _loadWaterIntake(); // Refresh data after returning
-                          //   },
-                          //   child: Text("Go to Water Tracker"),
-                          // ),
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Row(
+                              children: [
+                                Text(
+                                  "Water Intake Progress",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: 20),
+                          SizedBox(
+                            height: 150,
+                            child: PieChart(
+                              PieChartData(
+                                sections: [
+                                  PieChartSectionData(
+                                    value: getPercentage(),
+                                    title: "${getPercentage().toInt()}%",
+                                    color: Colors.deepPurple.shade100,
+                                    radius: 30,
+                                    titleStyle: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  PieChartSectionData(
+                                    value: 100 - getPercentage(),
+                                    color: Colors.grey[300],
+                                    radius: 25,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 20),
+                          ElevatedButton(
+                            onPressed: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => WaterIntakeScreen(),
+                                ),
+                              );
+                              _loadWaterIntake(); // Refresh data after returning
+                            },
+                            child: Text("Go to Water Tracker"),
+                          ),
                           Padding(
                             padding: const EdgeInsets.all(8.0),
                             child: Row(
@@ -478,18 +502,18 @@ class _DashboardState extends State<Dashboard> {
                               },
                             ),
                           ),
-                          ElevatedButton(
-                            onPressed: () async {
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => WaterIntakeScreen(),
-                                ),
-                              );
-                              _loadWaterIntake(); // Refresh data after returning
-                            },
-                            child: Text("Go to Water Tracker"),
-                          ),
+                          // ElevatedButton(
+                          //   onPressed: () async {
+                          //     await Navigator.push(
+                          //       context,
+                          //       MaterialPageRoute(
+                          //         builder: (context) => WaterIntakeScreen(),
+                          //       ),
+                          //     );
+                          //     _loadWaterIntake(); // Refresh data after returning
+                          //   },
+                          //   child: Text("Go to Water Tracker"),
+                          // ),
                           SizedBox(height: 80),
                         ],
                       ),

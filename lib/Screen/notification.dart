@@ -30,6 +30,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
     setState(() {
       _unreadNotifications = prefs.getStringList('unreadNotifications') ?? [];
     });
+    print("notification ${_unreadNotifications}");
   }
 
   Future<void> _clearNotifications() async {
@@ -67,6 +68,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
               : ListView.builder(
                 itemCount: _unreadNotifications.length,
                 itemBuilder: (context, index) {
+                  final parts = _unreadNotifications[index].split(' - ');
+                  final message = parts[0];
+                  final time = parts.length > 1 ? parts[1] : '';
+                  final date = parts.length > 2 ? parts[2] : '';
                   return Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Card(
@@ -78,7 +83,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           size: 20,
                           color: Colors.black,
                         ),
-                        title: Text(_unreadNotifications[index]),
+                        title: Text(message),
+                        subtitle: Text("Time: $time\nDate: $date"),
                         trailing: IconButton(
                           icon: Icon(Icons.close, color: Colors.red),
                           onPressed: () async {

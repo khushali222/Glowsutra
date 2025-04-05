@@ -57,6 +57,8 @@ dependencies:
   carousel_slider:
   smooth_page_indicator:
   fl_chart:
+  intl:
+  flutter_lints:
 
 
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -47,9 +48,17 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
     });
   }
 
+  // Future<void> _saveNotificationPreferences() async {
+  //   SharedPreferences prefs = await SharedPreferences.getInstance();
+  //   await prefs.setBool('unreadNotifications', notificationsEnabled);
+  //   await prefs.setString('reminder_type', selectedReminder);
+  // }
   Future<void> _saveNotificationPreferences() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('unreadNotifications', notificationsEnabled);
+    await prefs.setBool(
+      'notifications_enabled',
+      notificationsEnabled,
+    ); // ✅ use the right key!
     await prefs.setString('reminder_type', selectedReminder);
   }
 
@@ -98,7 +107,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
 
   void _scheduleNotifications(int days) {
     flutterLocalNotificationsPlugin.cancelAll();
-    final List<int> reminderHours = [9, 11, 13, 15, 17, 19, 21, 22];
+    final List<int> reminderHours = [9, 11, 13, 15, 16, 19, 21, 22];
 
     for (int day = 0; day < days; day++) {
       for (int hour in reminderHours) {
@@ -119,7 +128,10 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
     if (scheduledTime.isBefore(now)) {
       scheduledTime = scheduledTime.add(Duration(days: 1));
     }
-
+    // Getting the water intake value from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    int totalGlasses = prefs.getInt('water_glasses') ?? 0;
+    final String message = "Drink water! Current intake: $totalGlasses glasses";
     final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
           'water_reminder_channel',
@@ -135,11 +147,55 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
     await flutterLocalNotificationsPlugin.zonedSchedule(
       hour + dayOffset * 24,
       'Time to drink water!',
-      'Stay hydrated and drink a glass of water.',
+      message,
       tz.TZDateTime.from(scheduledTime, tz.local),
       notificationDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
+    _saveNotificationWhenTimeArrives("Time to drink water!", scheduledTime);
+  }
+
+  // Future<void> _saveWaterIntakeNotification(String message) async {
+  //   SharedPreferences prefs = await SharedPreferences.getInstance();
+  //   List<String> notifications =
+  //       prefs.getStringList('unreadNotifications') ?? [];
+  //   notifications.add(message);
+  //   await prefs.setStringList('unreadNotifications', notifications);
+  // }
+  void _saveNotificationWhenTimeArrives(
+    String reminder,
+    DateTime scheduledTime,
+  ) {
+    Duration delay = scheduledTime.difference(DateTime.now());
+    if (delay.isNegative) return;
+
+    Future.delayed(delay, () async {
+      final prefs = await SharedPreferences.getInstance();
+      List<String> notifications =
+          prefs.getStringList('unreadNotifications') ?? [];
+
+      String formattedTime =
+          "${scheduledTime.hour % 12 == 0 ? 12 : scheduledTime.hour % 12}:${scheduledTime.minute.toString().padLeft(2, '0')} ${scheduledTime.hour >= 12 ? "PM" : "AM"}";
+
+      String formattedDate = DateFormat('yyyy-MM-dd').format(scheduledTime);
+      notifications.add("$reminder - $formattedTime - $formattedDate");
+
+      await prefs.setStringList('unreadNotifications', notifications);
+      if (mounted) setState(() {});
+    });
+  }
+
+  Future<void> _saveWaterIntakeNotification(String message) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final value = prefs.get('unreadNotifications');
+
+    List<String> notifications = [];
+    if (value is List<String>) {
+      notifications = value;
+    }
+
+    notifications.add(message);
+    await prefs.setStringList('unreadNotifications', notifications);
   }
 
   void _addWater(int glasses) {
