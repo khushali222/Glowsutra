@@ -176,12 +176,14 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
 
       String formattedTime =
           "${scheduledTime.hour % 12 == 0 ? 12 : scheduledTime.hour % 12}:${scheduledTime.minute.toString().padLeft(2, '0')} ${scheduledTime.hour >= 12 ? "PM" : "AM"}";
-
       String formattedDate = DateFormat('yyyy-MM-dd').format(scheduledTime);
-      notifications.add("$reminder - $formattedTime - $formattedDate");
+      String finalMessage = "$reminder - $formattedTime - $formattedDate";
 
-      await prefs.setStringList('unreadNotifications', notifications);
-      if (mounted) setState(() {});
+      if (!notifications.contains(finalMessage)) {
+        notifications.add(finalMessage);
+        await prefs.setStringList('unreadNotifications', notifications);
+        if (mounted) setState(() {});
+      }
     });
   }
 
@@ -227,87 +229,188 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    double progress = totalGlasses / targetGlasses;
+
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: Text("Water Intake Tracker"),
         backgroundColor: Colors.deepPurple[100],
+        elevation: 0,
+        title: Text("Water Intake Tracker"),
       ),
-      body: Padding(
-        padding: const EdgeInsets.only(left: 16, right: 16),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              height: 200,
-              width: 400,
-              child: Image.network(
-                "https://img.freepik.com/free-psd/refreshing-glass-water-with-ice-cubes-transparent-background_84443-27986.jpg?ga=GA1.1.92241902.1743491671&semt=ais_hybrid&w=740",
-              ),
-            ),
-            Text(
-              "Water Intake: $totalGlasses / $targetGlasses glasses",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton(
-                  onPressed: () => _addWater(1),
-                  child: Text("+1 Glass"),
-                ),
-                SizedBox(width: 10),
-                ElevatedButton.icon(
-                  onPressed: () => _removeWater(1),
-                  icon: Icon(Icons.remove),
-                  label: Text("Remove 1"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.deepPurple.shade100,
+      backgroundColor: Colors.white,
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          child: Column(
+            children: [
+              // Image Section
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  height: 250,
+                  // width: double.infinity,
+                  color: Colors.deepPurple[50],
+                  child: Image.network(
+                    "https://img.freepik.com/premium-vector/glass-with-water-template-glass-transparent-cup-with-blue-refreshing-natural-liquid_79145-1179.jpg?ga=GA1.1.92241902.1743491671&semt=ais_hybrid&w=740",
+                    // fit: BoxFit.fill,
                   ),
                 ),
-              ],
-            ),
-            SizedBox(height: 20),
-            ElevatedButton(onPressed: _resetWaterIntake, child: Text("Reset")),
-            SizedBox(height: 30),
-            Text("Reminders:", style: TextStyle(fontSize: 18)),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text("Enable Reminders"),
-                Switch(
-                  value: notificationsEnabled,
-                  onChanged: _toggleNotifications,
-                  activeColor: Colors.blue,
+              ),
+              SizedBox(height: 10),
+
+              // Progress Info
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.deepPurple[50],
+                  borderRadius: BorderRadius.circular(16),
                 ),
-              ],
-            ),
-            SizedBox(height: 10),
-            Text("Select Reminder Type:", style: TextStyle(fontSize: 16)),
-            DropdownButton<String>(
-              value: selectedReminder,
-              onChanged: (String? newValue) {
-                setState(() {
-                  selectedReminder = newValue!;
-                });
-                if (notificationsEnabled) _toggleNotifications(true);
-                _saveNotificationPreferences();
-              },
-              items:
-                  [
-                    "None",
-                    "Daily",
-                    "Weekly",
-                    "Monthly",
-                  ].map<DropdownMenuItem<String>>((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-            ),
-          ],
+                child: Column(
+                  children: [
+                    Text(
+                      "$totalGlasses / $targetGlasses Glasses",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepPurple[800],
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 10,
+                      color: Colors.deepPurple,
+                      backgroundColor: Colors.deepPurple.shade100,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ],
+                ),
+              ),
+
+              SizedBox(height: 24),
+
+              // Inline Action Buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () => _addWater(1),
+                    icon: Icon(Icons.add),
+                    label: Text("Add"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple[300],
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () => _removeWater(1),
+                    icon: Icon(Icons.remove),
+                    label: Text("Remove"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple[100],
+                      foregroundColor: Colors.deepPurple[800],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                  OutlinedButton(
+                    onPressed: _resetWaterIntake,
+                    child: Text("Reset"),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.deepPurple,
+                      side: BorderSide(color: Colors.deepPurple.shade300),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              SizedBox(height: 30),
+              Divider(color: Colors.deepPurple[100]),
+              SizedBox(height: 8),
+              // Reminder Section
+              Row(
+                children: [
+                  Text(
+                    "Reminders",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.deepPurple[900],
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 10),
+
+              // Reminder Toggle
+              Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  Text(
+                    "Enable Reminders",
+                    style: TextStyle(color: Colors.deepPurple[700]),
+                  ),
+                  Switch(
+                    value: notificationsEnabled,
+                    onChanged: _toggleNotifications,
+                    activeColor: Colors.deepPurple,
+                  ),
+                ],
+              ),
+              SizedBox(height: 10),
+
+              // Dropdown
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.deepPurple[50],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: selectedReminder,
+                    isExpanded: true,
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        selectedReminder = newValue!;
+                      });
+                      if (notificationsEnabled) _toggleNotifications(true);
+                      _saveNotificationPreferences();
+                    },
+                    items:
+                        ["None", "Daily", "Weekly", "Monthly"]
+                            .map(
+                              (value) => DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(value),
+                              ),
+                            )
+                            .toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

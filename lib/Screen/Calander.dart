@@ -117,7 +117,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   : DateTimeComponents.dayOfMonthAndTime)
               : null,
     );
-
     _saveNotificationWhenTimeArrives(reminder, scheduledTime);
   }
 
@@ -135,12 +134,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
       String formattedTime =
           "${scheduledTime.hour % 12 == 0 ? 12 : scheduledTime.hour % 12}:${scheduledTime.minute.toString().padLeft(2, '0')} ${scheduledTime.hour >= 12 ? "PM" : "AM"}";
-
       String formattedDate = DateFormat('yyyy-MM-dd').format(scheduledTime);
-      notifications.add("$reminder - $formattedTime - $formattedDate");
+      String finalMessage = "$reminder - $formattedTime - $formattedDate";
 
-      await prefs.setStringList('unreadNotifications', notifications);
-      if (mounted) setState(() {});
+      if (!notifications.contains(finalMessage)) {
+        notifications.add(finalMessage);
+        await prefs.setStringList('unreadNotifications', notifications);
+        if (mounted) setState(() {});
+      }
     });
   }
 
@@ -154,8 +155,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     if (planType != "off") {
       final now = DateTime.now();
-      final reminderHours = [8, 12, 16, 20];
-
+      // final reminderHours = [8, 12, 16, 20];
+      final List<int> reminderHours = [8, 10, 12, 14, 16, 19, 20, 22];
       for (int day = 0; day < 7; day++) {
         for (int hour in reminderHours) {
           final reminderTime = DateTime(
@@ -388,6 +389,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     onChanged: (val) {
                                       if (val != null)
                                         _togglePresetReminder(reminder, val);
+                                      print("calling");
                                     },
                                     icon: Icon(
                                       Icons.arrow_drop_down,

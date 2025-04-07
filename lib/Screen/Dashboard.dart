@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 import 'Calander.dart';
+import 'Home_Remedies.dart';
 import 'Profile.dart';
 import 'Skincaretips.dart';
 import 'Water_intakescreen.dart';
@@ -311,60 +312,108 @@ class _DashboardState extends State<Dashboard> {
                               dotColor: Colors.grey.shade300,
                             ),
                           ),
-                          SizedBox(height: 20),
+                          SizedBox(height: 15),
                           Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Row(
+                            padding: const EdgeInsets.all(4.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      "Current Hydration",
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 20),
+                                Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    SizedBox(
+                                      height: 180,
+                                      width: 180,
+                                      child: PieChart(
+                                        PieChartData(
+                                          sectionsSpace: 0,
+                                          centerSpaceRadius: 60,
+                                          startDegreeOffset: -90,
+                                          sections: [
+                                            PieChartSectionData(
+                                              value: getPercentage(),
+                                              color: Colors.deepPurple.shade100,
+                                              radius: 28,
+                                              showTitle: false,
+                                            ),
+                                            PieChartSectionData(
+                                              value: 100 - getPercentage(),
+                                              color: Colors.blue.shade100,
+                                              radius: 22,
+                                              showTitle: false,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    Column(
+                                      mainAxisAlignment:
+                                      MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          "${getPercentage().toInt()}%",
+                                          style: TextStyle(
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.deepPurple,
+                                          ),
+                                        ),
+                                        Text(
+                                          getPercentage() >= 75
+                                              ? "Hydrated"
+                                              : "Need Water",
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 20),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    _buildLegendColor(
+                                      Colors.deepPurple.shade100,
+                                      "Water Consumed",
+                                    ),
+                                    SizedBox(width: 16),
+                                    _buildLegendColor(
+                                      Colors.blue.shade100,
+                                      "Remaining",
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 10),
                                 Text(
-                                  "Water Intake Progress",
+                                  getPercentage() >= 75
+                                      ? "Great job staying hydrated!"
+                                      : "Keep sipping! You're almost there.",
                                   style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    fontStyle: FontStyle.italic,
+                                    color: Colors.black87,
                                   ),
+                                  textAlign: TextAlign.center,
                                 ),
                               ],
                             ),
                           ),
-                          SizedBox(height: 20),
-                          SizedBox(
-                            height: 150,
-                            child: PieChart(
-                              PieChartData(
-                                sections: [
-                                  PieChartSectionData(
-                                    value: getPercentage(),
-                                    title: "${getPercentage().toInt()}%",
-                                    color: Colors.deepPurple.shade100,
-                                    radius: 30,
-                                    titleStyle: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  PieChartSectionData(
-                                    value: 100 - getPercentage(),
-                                    color: Colors.grey[300],
-                                    radius: 25,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 20),
-                          ElevatedButton(
-                            onPressed: () async {
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => WaterIntakeScreen(),
-                                ),
-                              );
-                              _loadWaterIntake(); // Refresh data after returning
-                            },
-                            child: Text("Go to Water Tracker"),
-                          ),
+                          SizedBox(height: 8),
                           Padding(
                             padding: const EdgeInsets.all(8.0),
                             child: Row(
@@ -419,7 +468,7 @@ class _DashboardState extends State<Dashboard> {
                               "No reminders for today!",
                               style: TextStyle(color: Colors.grey),
                             ),
-                          SizedBox(height: 20),
+                          SizedBox(height: 17),
                           // 🔹 Skincare Schedule Navigation
                           Card(
                             elevation: 4,
@@ -450,8 +499,6 @@ class _DashboardState extends State<Dashboard> {
                             ),
                           ),
                           SizedBox(height: 15),
-
-                          // 🔹 Skincare Tips & Recommendations
                           Card(
                             elevation: 4,
                             shape: RoundedRectangleBorder(
@@ -470,10 +517,10 @@ class _DashboardState extends State<Dashboard> {
                                 await Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => CalendarScreen(),
+                                    builder: (context) => WaterIntakeScreen(),
                                   ),
                                 );
-                                _loadReminders(); // Reload notifications after returning
+                                _loadWaterIntake();
                                 setState(() {});
                               },
                             ),
@@ -502,18 +549,33 @@ class _DashboardState extends State<Dashboard> {
                               },
                             ),
                           ),
-                          // ElevatedButton(
-                          //   onPressed: () async {
-                          //     await Navigator.push(
-                          //       context,
-                          //       MaterialPageRoute(
-                          //         builder: (context) => WaterIntakeScreen(),
-                          //       ),
-                          //     );
-                          //     _loadWaterIntake(); // Refresh data after returning
-                          //   },
-                          //   child: Text("Go to Water Tracker"),
-                          // ),
+                          SizedBox(height: 12),
+                          Card(
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ListTile(
+                              leading: Icon(
+                                Icons.spa,
+                                color: Colors.deepPurple,
+                              ),
+                              title: Text("Skincare Home Remedies"),
+                              subtitle: Text(
+                                "Get personalized skincare Remedies",
+                              ),
+                              trailing: Icon(Icons.arrow_forward_ios),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => homeRemedies(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+
                           SizedBox(height: 80),
                         ],
                       ),
@@ -521,6 +583,21 @@ class _DashboardState extends State<Dashboard> {
                   ),
         );
       },
+    );
+  }
+
+  // Helper widget to show legend
+  Widget _buildLegendColor(Color color, String label) {
+    return Row(
+      children: [
+        Container(
+          width: 17,
+          height: 17,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        SizedBox(width: 4),
+        Text(label, style: TextStyle(fontSize: 13)),
+      ],
     );
   }
 

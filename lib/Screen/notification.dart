@@ -84,7 +84,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                           color: Colors.black,
                         ),
                         title: Text(message),
-                        subtitle: Text("Time: $time\nDate: $date"),
+                        subtitle: Text(" $time  $date"),
                         trailing: IconButton(
                           icon: Icon(Icons.close, color: Colors.red),
                           onPressed: () async {
