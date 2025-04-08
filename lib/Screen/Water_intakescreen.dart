@@ -107,7 +107,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
 
   void _scheduleNotifications(int days) {
     flutterLocalNotificationsPlugin.cancelAll();
-    final List<int> reminderHours = [9, 11, 13, 15, 16, 19, 21, 22];
+    final List<int> reminderHours = [9, 11, 13, 15, 17, 19, 21, 22];
 
     for (int day = 0; day < days; day++) {
       for (int hour in reminderHours) {
@@ -145,23 +145,17 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
     );
 
     await flutterLocalNotificationsPlugin.zonedSchedule(
-      hour + dayOffset * 24,
+      hour + dayOffset * 24, //for only one day
       'Time to drink water!',
       message,
       tz.TZDateTime.from(scheduledTime, tz.local),
       notificationDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
-    _saveNotificationWhenTimeArrives("Time to drink water!", scheduledTime);
+    //_saveWaterIntakeNotification(message);
+    _saveNotificationWhenTimeArrives(message, scheduledTime);
   }
 
-  // Future<void> _saveWaterIntakeNotification(String message) async {
-  //   SharedPreferences prefs = await SharedPreferences.getInstance();
-  //   List<String> notifications =
-  //       prefs.getStringList('unreadNotifications') ?? [];
-  //   notifications.add(message);
-  //   await prefs.setStringList('unreadNotifications', notifications);
-  // }
   void _saveNotificationWhenTimeArrives(
     String reminder,
     DateTime scheduledTime,
@@ -179,14 +173,22 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
       String formattedDate = DateFormat('yyyy-MM-dd').format(scheduledTime);
       String finalMessage = "$reminder - $formattedTime - $formattedDate";
 
-      if (!notifications.contains(finalMessage)) {
-        notifications.add(finalMessage);
-        await prefs.setStringList('unreadNotifications', notifications);
-        if (mounted) setState(() {});
-      }
+      //if (!notifications.contains(finalMessage)) {
+      notifications.add(finalMessage);
+      await prefs.setStringList('unreadNotifications', notifications);
+      print("check notification ${notifications}");
+      if (mounted) setState(() {});
+      // }
     });
   }
 
+  // Future<void> _saveWaterIntakeNotification(String message) async {
+  //   SharedPreferences prefs = await SharedPreferences.getInstance();
+  //   List<String> notifications =
+  //       prefs.getStringList('unreadNotifications') ?? [];
+  //   notifications.add(message);
+  //   await prefs.setStringList('unreadNotifications', notifications);
+  // }
   Future<void> _saveWaterIntakeNotification(String message) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final value = prefs.get('unreadNotifications');
@@ -378,37 +380,43 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
                 ],
               ),
               SizedBox(height: 10),
-
-              // Dropdown
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.deepPurple[50],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: selectedReminder,
-                    isExpanded: true,
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        selectedReminder = newValue!;
-                      });
-                      if (notificationsEnabled) _toggleNotifications(true);
-                      _saveNotificationPreferences();
-                    },
-                    items:
-                        ["None", "Daily", "Weekly", "Monthly"]
-                            .map(
-                              (value) => DropdownMenuItem<String>(
+              Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.deepPurple[50],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: selectedReminder,
+                        onChanged: (String? newValue) {
+                          setState(() {
+                            selectedReminder = newValue!;
+                          });
+                          if (notificationsEnabled) _toggleNotifications(true);
+                          _saveNotificationPreferences();
+                        },
+                        items:
+                            [
+                              "None",
+                              "Daily",
+                              "Weekly",
+                              "Monthly",
+                            ].map<DropdownMenuItem<String>>((String value) {
+                              return DropdownMenuItem<String>(
                                 value: value,
                                 child: Text(value),
-                              ),
-                            )
-                            .toList(),
+                              );
+                            }).toList(),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
+
+              // Dropdown
             ],
           ),
         ),

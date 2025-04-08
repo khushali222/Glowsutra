@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:face_camera/face_camera.dart';
@@ -14,6 +15,8 @@ import 'package:image/image.dart' as img;
 import 'package:google_ml_kit/google_ml_kit.dart';
 
 class SkinAnalyzerScreen extends StatefulWidget {
+  File? image;
+  SkinAnalyzerScreen({super.key, this.image});
   @override
   _SkinAnalyzerScreenState createState() => _SkinAnalyzerScreenState();
 }
@@ -91,7 +94,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
 
     File imageFile = File(pickedFile.path);
     setState(() {
-      _image = imageFile;
+      widget.image = imageFile;
       _isLoading = true;
       _isError = false;
       _progress = 10;
@@ -292,14 +295,14 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
       _imagePath = prefs.getString('imagePath') ?? "";
 
       if (_imagePath.isNotEmpty) {
-        _image = File(_imagePath);
+        widget.image = File(_imagePath);
       }
       _isloading = false;
       print(" acne $_resultAcne");
     });
   }
 
-  /// ✅ Save details & image path
+  //Save details & image path
   Future<void> _saveData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('acneStatus', _resultAcne);
@@ -308,8 +311,8 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
     await prefs.setString('wrinkles', _resultWrinkle);
     await prefs.setString('precautions', _precautions);
 
-    if (_image != null) {
-      await prefs.setString('imagePath', _image!.path);
+    if (widget.image != null) {
+      await prefs.setString('imagePath', widget.image!.path);
     }
     // Debugging: Print saved values
     print("✅ Saved Data:");
@@ -323,6 +326,45 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
       context,
     ).showSnackBar(SnackBar(content: Text("Details Saved!")));
   }
+  // Future<void> _saveData() async {
+  //   SharedPreferences prefs = await SharedPreferences.getInstance();
+  //
+  //   await prefs.setString('acneStatus', _resultAcne);
+  //   await prefs.setString('skinType', _resultType);
+  //   await prefs.setString('skinTone', _resultTone);
+  //   await prefs.setString('wrinkles', _resultWrinkle);
+  //   await prefs.setString('precautions', _precautions);
+  //
+  //   if (widget.image != null) {
+  //     await prefs.setString('imagePath', widget.image!.path);
+  //   }
+  //
+  //   final now = DateTime.now();
+  //   Map<String, dynamic> entry = {
+  //     'timestamp': now.toIso8601String(),
+  //     'acneStatus': _resultAcne,
+  //     'skinType': _resultType,
+  //     'skinTone': _resultTone,
+  //     'wrinkles': _resultWrinkle,
+  //     'precautions': _precautions,
+  //     'imagePath': widget.image?.path ?? '',
+  //   };
+  //
+  //   List<Map<String, dynamic>> history = [];
+  //
+  //   final saved = prefs.getString('weeklySkinAnalysis');
+  //   if (saved != null) {
+  //     List<dynamic> decoded = jsonDecode(saved);
+  //     history = decoded.cast<Map<String, dynamic>>();
+  //   }
+  //
+  //   history.add(entry);
+  //   await prefs.setString('weeklySkinAnalysis', jsonEncode(history));
+  //
+  //   ScaffoldMessenger.of(context).showSnackBar(
+  //     SnackBar(content: Text("Details Saved!")),
+  //   );
+  // }
 
   Widget _buildShimmerEffect() {
     return Shimmer.fromColors(
@@ -386,11 +428,11 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
                       child:
                           _isLoading
                               ? _buildShimmerEffect()
-                              : (_image != null
+                              : (widget.image != null
                                   ? Padding(
                                     padding: const EdgeInsets.only(top: 10),
                                     child: Image.file(
-                                      _image!,
+                                      widget.image!,
                                       height: 200,
                                       width: 200,
                                       fit: BoxFit.cover,
@@ -432,7 +474,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (_image != null ||
+                              if (widget.image != null ||
                                   _resultAcne.isNotEmpty ||
                                   _resultType.isNotEmpty ||
                                   _resultTone.isNotEmpty ||
@@ -564,17 +606,21 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
                         ),
 
                     SizedBox(height: 70),
-
                     // ElevatedButton.icon(
-                    //   onPressed: () {
-                    //     Navigator.push(
+                    //   onPressed: () async {
+                    //     await Navigator.push(
                     //       context,
-                    //       MaterialPageRoute(builder: (context) => FaceDetectionPage()),
+                    //       MaterialPageRoute(
+                    //         builder: (context) => CameraScreen(),
+                    //       ),
                     //     );
+                    //     _loadSavedData();
+                    //     setState(() {});
                     //   },
                     //   icon: Icon(Icons.image),
                     //   label: Text("Gallery"),
                     // ),
+                    // SizedBox(height: 70),
                   ],
                 ),
               ),

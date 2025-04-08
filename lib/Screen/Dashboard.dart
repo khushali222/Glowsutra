@@ -314,7 +314,7 @@ class _DashboardState extends State<Dashboard> {
                           ),
                           SizedBox(height: 15),
                           Padding(
-                            padding: const EdgeInsets.all(4.0),
+                            padding: const EdgeInsets.all(2.0),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
@@ -360,7 +360,7 @@ class _DashboardState extends State<Dashboard> {
                                     ),
                                     Column(
                                       mainAxisAlignment:
-                                      MainAxisAlignment.center,
+                                          MainAxisAlignment.center,
                                       children: [
                                         Text(
                                           "${getPercentage().toInt()}%",
@@ -404,7 +404,7 @@ class _DashboardState extends State<Dashboard> {
                                       ? "Great job staying hydrated!"
                                       : "Keep sipping! You're almost there.",
                                   style: TextStyle(
-                                    fontSize: 16,
+                                    fontSize: 15,
                                     fontStyle: FontStyle.italic,
                                     color: Colors.black87,
                                   ),
@@ -413,7 +413,7 @@ class _DashboardState extends State<Dashboard> {
                               ],
                             ),
                           ),
-                          SizedBox(height: 8),
+                          SizedBox(height: 12),
                           Padding(
                             padding: const EdgeInsets.all(8.0),
                             child: Row(
@@ -468,7 +468,7 @@ class _DashboardState extends State<Dashboard> {
                               "No reminders for today!",
                               style: TextStyle(color: Colors.grey),
                             ),
-                          SizedBox(height: 17),
+                          SizedBox(height: 15),
                           // 🔹 Skincare Schedule Navigation
                           Card(
                             elevation: 4,
