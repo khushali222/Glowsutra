@@ -1,9 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+
+import '../Serviece/helper.dart';
 
 class WaterIntakeScreen extends StatefulWidget {
   @override
@@ -153,34 +157,52 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
     //_saveWaterIntakeNotification(message);
-    _saveNotificationWhenTimeArrives(message, scheduledTime);
+    //_saveNotificationWhenTimeArrives(message, scheduledTime);
+    NotificationHelper.saveScheduledNotification(message, scheduledTime);
   }
 
-  void _saveNotificationWhenTimeArrives(
-    String reminder,
-    DateTime scheduledTime,
-  ) {
-    Duration delay = scheduledTime.difference(DateTime.now());
-    if (delay.isNegative) return;
 
-    Future.delayed(delay, () async {
-      final prefs = await SharedPreferences.getInstance();
-      List<String> notifications =
-          prefs.getStringList('unreadNotifications') ?? [];
-
-      String formattedTime =
-          "${scheduledTime.hour % 12 == 0 ? 12 : scheduledTime.hour % 12}:${scheduledTime.minute.toString().padLeft(2, '0')} ${scheduledTime.hour >= 12 ? "PM" : "AM"}";
-      String formattedDate = DateFormat('yyyy-MM-dd').format(scheduledTime);
-      String finalMessage = "$reminder - $formattedTime - $formattedDate";
-
-      //if (!notifications.contains(finalMessage)) {
-      notifications.add(finalMessage);
-      await prefs.setStringList('unreadNotifications', notifications);
-      print("check notification ${notifications}");
-      if (mounted) setState(() {});
-      // }
-    });
-  }
+  // void _saveNotificationWhenTimeArrives(
+  //     String reminder,
+  //     DateTime scheduledTime,
+  //     ) async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   List<String> notifications =
+  //       prefs.getStringList('unreadNotifications') ?? [];
+  //
+  //   String formattedTime =
+  //       "${scheduledTime.hour % 12 == 0 ? 12 : scheduledTime.hour % 12}:${scheduledTime.minute.toString().padLeft(2, '0')} ${scheduledTime.hour >= 12 ? "PM" : "AM"}";
+  //   String formattedDate = DateFormat('yyyy-MM-dd').format(scheduledTime);
+  //   String message = "$reminder - $formattedTime - $formattedDate";
+  //
+  //   Map<String, dynamic> entry = {
+  //     "message": message,
+  //     "scheduledTime": scheduledTime.toIso8601String(),
+  //   };
+  //
+  //   notifications.add(jsonEncode(entry));
+  //   await prefs.setStringList('unreadNotifications', notifications);
+  // }
+  //
+  // Future<List<String>> getDeliveredNotifications() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   List<String> notifications =
+  //       prefs.getStringList('scheduled_notifications') ?? [];
+  //
+  //   final now = DateTime.now();
+  //   List<String> deliveredMessages = [];
+  //
+  //   for (String jsonStr in notifications) {
+  //     final decoded = jsonDecode(jsonStr);
+  //     final DateTime scheduledTime = DateTime.parse(decoded['scheduledTime']);
+  //
+  //     if (scheduledTime.isBefore(now)) {
+  //       deliveredMessages.add(decoded['message']);
+  //     }
+  //   }
+  //
+  //   return deliveredMessages;
+  // }
 
   // Future<void> _saveWaterIntakeNotification(String message) async {
   //   SharedPreferences prefs = await SharedPreferences.getInstance();

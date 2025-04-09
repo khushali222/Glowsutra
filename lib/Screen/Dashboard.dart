@@ -11,6 +11,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
+import '../Serviece/helper.dart';
 import 'Calander.dart';
 import 'Home_Remedies.dart';
 import 'Profile.dart';
@@ -36,6 +37,7 @@ class _DashboardState extends State<Dashboard> {
     _initializeNotifications();
     _loadReminders(); // Load reminders when dashboard starts
     _loadWaterIntake();
+    _loadDeliveredNotifications();
   }
 
   // Future<void> _loadReminders() async {
@@ -167,19 +169,85 @@ class _DashboardState extends State<Dashboard> {
   bool _isLoading = true;
   final StreamController<void> _notificationStream =
       StreamController<void>.broadcast();
+  int _deliveredCount = 0;
+  Future<void> _loadDeliveredNotifications() async {
+    final List<String> delivered =
+        await NotificationHelper.getDeliveredNotifications();
+    setState(() {
+      _unreadNotifications = delivered;
+      _deliveredCount = delivered.length;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     List<MapEntry<DateTime, String>> todaysReminders = _getTodaysReminders();
     return StreamBuilder<void>(
       stream: _notificationStream.stream,
       builder: (context, snapshot) {
-        _loadReminders(); // Reload reminders whenever a new notification is received
+        _loadDeliveredNotifications();
         return Scaffold(
           drawer: Drawer(),
           appBar: AppBar(
             backgroundColor: Colors.deepPurple[100],
             title: Text("Dashboard"),
             actions: [
+              // GestureDetector(
+              //   onTap: () async {
+              //     await Navigator.push(
+              //       context,
+              //       MaterialPageRoute(
+              //         builder:
+              //             (context) => NotificationScreen(
+              //               notifications: _unreadNotifications,
+              //               onClear: () async {
+              //                 setState(() {
+              //                   _unreadNotifications.clear();
+              //                 });
+              //
+              //                 final prefs =
+              //                     await SharedPreferences.getInstance();
+              //                 await prefs.setStringList(
+              //                   'unreadNotifications',
+              //                   [],
+              //                 );
+              //               },
+              //             ),
+              //       ),
+              //     );
+              //     _loadReminders(); // Reload notifications after returning
+              //     setState(() {});
+              //   },
+              //   child: Padding(
+              //     padding: const EdgeInsets.all(10),
+              //     child: Stack(
+              //       children: [
+              //         FaIcon(
+              //           FontAwesomeIcons.bell,
+              //           size: 20,
+              //           color: Colors.black,
+              //         ),
+              //         // Icon(Icons.notifications, size: 28), // Notification Icon
+              //         if (_unreadNotifications.isNotEmpty)
+              //           Positioned(
+              //             right: 0,
+              //             top: 0,
+              //             child: Container(
+              //               padding: EdgeInsets.all(4),
+              //               decoration: BoxDecoration(
+              //                 color: Colors.red,
+              //                 shape: BoxShape.circle,
+              //               ),
+              //               constraints: BoxConstraints(
+              //                 minWidth: 10,
+              //                 minHeight: 10,
+              //               ),
+              //             ),
+              //           ),
+              //       ],
+              //     ),
+              //   ),
+              // ),
               GestureDetector(
                 onTap: () async {
                   await Navigator.push(
@@ -188,45 +256,32 @@ class _DashboardState extends State<Dashboard> {
                       builder:
                           (context) => NotificationScreen(
                             notifications: _unreadNotifications,
-                            onClear: () async {
-                              setState(() {
-                                _unreadNotifications.clear();
-                              });
-
-                              final prefs =
-                                  await SharedPreferences.getInstance();
-                              await prefs.setStringList(
-                                'unreadNotifications',
-                                [],
-                              );
-                            },
                           ),
                     ),
                   );
-                  _loadReminders(); // Reload notifications after returning
-                  setState(() {});
+
+                  await _loadDeliveredNotifications();
                 },
                 child: Padding(
                   padding: const EdgeInsets.all(10),
                   child: Stack(
                     children: [
-                      FaIcon(
+                      const FaIcon(
                         FontAwesomeIcons.bell,
                         size: 20,
                         color: Colors.black,
                       ),
-                      // Icon(Icons.notifications, size: 28), // Notification Icon
-                      if (_unreadNotifications.isNotEmpty)
+                      if (_deliveredCount > 0)
                         Positioned(
                           right: 0,
                           top: 0,
                           child: Container(
-                            padding: EdgeInsets.all(4),
-                            decoration: BoxDecoration(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
                               color: Colors.red,
                               shape: BoxShape.circle,
                             ),
-                            constraints: BoxConstraints(
+                            constraints: const BoxConstraints(
                               minWidth: 10,
                               minHeight: 10,
                             ),

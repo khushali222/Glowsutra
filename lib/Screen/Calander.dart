@@ -9,6 +9,8 @@ import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:easy_date_timeline/easy_date_timeline.dart';
 
+import '../Serviece/helper.dart';
+
 class CalendarScreen extends StatefulWidget {
   @override
   _CalendarScreenState createState() => _CalendarScreenState();
@@ -115,7 +117,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   : DateTimeComponents.dayOfMonthAndTime)
               : null,
     );
-    _saveNotificationWhenTimeArrives(reminder, scheduledTime);
+    NotificationHelper.saveScheduledNotification(reminder, scheduledTime);
   }
 
   void _saveNotificationWhenTimeArrives(

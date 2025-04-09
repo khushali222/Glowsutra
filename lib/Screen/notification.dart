@@ -2,15 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../Serviece/helper.dart';
+
 class NotificationScreen extends StatefulWidget {
   final List<String> notifications;
-  final VoidCallback onClear;
 
-  const NotificationScreen({
-    Key? key,
-    required this.notifications,
-    required this.onClear,
-  }) : super(key: key);
+  const NotificationScreen({Key? key, required this.notifications})
+    : super(key: key);
 
   @override
   _NotificationScreenState createState() => _NotificationScreenState();
@@ -26,22 +24,30 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   Future<void> _loadUnreadNotifications() async {
-    final prefs = await SharedPreferences.getInstance();
+    final delivered = await NotificationHelper.getDeliveredNotifications();
     setState(() {
-      _unreadNotifications = prefs.getStringList('unreadNotifications') ?? [];
+      _unreadNotifications = delivered;
     });
-    print("notification ${_unreadNotifications}");
+    print("Delivered notifications: $_unreadNotifications");
   }
 
-  Future<void> _clearNotifications() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('unreadNotifications', []);
-    setState(() {
-      _unreadNotifications.clear();
-    });
+  // Future<void> _loadUnreadNotifications() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   setState(() {
+  //     _unreadNotifications = prefs.getStringList('unreadNotifications') ?? [];
+  //   });
+  //   print("notification ${_unreadNotifications}");
+  // }
 
-    widget.onClear(); // Notify the Dashboard
-  }
+  // Future<void> _clearNotifications() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   await prefs.setStringList('unreadNotifications', []);
+  //   setState(() {
+  //     _unreadNotifications.clear();
+  //   });
+  //
+  //   widget.onClear(); // Notify the Dashboard
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -88,14 +94,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
                         trailing: IconButton(
                           icon: Icon(Icons.close, color: Colors.red),
                           onPressed: () async {
+                            final fullText = "$message - $time - $date";
+                            await NotificationHelper.removeDeliveredNotification(
+                              fullText,
+                            );
                             setState(() {
                               _unreadNotifications.removeAt(index);
                             });
-                            final prefs = await SharedPreferences.getInstance();
-                            await prefs.setStringList(
-                              'unreadNotifications',
-                              _unreadNotifications,
-                            );
                           },
                         ),
                       ),
