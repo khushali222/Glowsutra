@@ -156,25 +156,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     if (planType != "off") {
       final now = DateTime.now();
-      // final reminderHours = [8, 12, 16, 20];
-      final List<int> reminderHours = [8, 10, 12, 15, 16, 19, 20, 22];
-      for (int day = 0; day < 7; day++) {
-        for (int hour in reminderHours) {
-          final reminderTime = DateTime(
-            now.year,
-            now.month,
-            now.day,
-            hour,
-          ).add(Duration(days: day));
+      final List<int> reminderHours = [8, 10, 13, 15, 16, 19, 20, 22];
 
-          if (reminderTime.isAfter(now)) {
-            _scheduleNotification(
-              reminder,
-              reminderTime,
-              isRepeating: true,
-              repeatType: planType,
-            );
-          }
+      for (int hour in reminderHours) {
+        DateTime reminderTime = DateTime(now.year, now.month, now.day, hour);
+
+        // Only schedule if it's still ahead of the current time
+        if (reminderTime.isAfter(now)) {
+          _scheduleNotification(
+            reminder,
+            reminderTime,
+            isRepeating: true,
+            repeatType: planType,
+          );
         }
       }
     }

@@ -28,7 +28,9 @@ class Dashboard extends StatefulWidget {
 
 class _DashboardState extends State<Dashboard> {
   Map<DateTime, List<String>> _reminders = {};
-  List<String> _unreadNotifications = [];
+  //List<String> _unreadNotifications = [];
+  List<Map<String, dynamic>> _unreadNotifications = [];
+
   FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
   @override
@@ -40,23 +42,6 @@ class _DashboardState extends State<Dashboard> {
     _loadDeliveredNotifications();
   }
 
-  // Future<void> _loadReminders() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   final String? savedReminders = prefs.getString('reminders');
-  //
-  //   if (savedReminders != null) {
-  //     Map<String, dynamic> decodedReminders = jsonDecode(savedReminders);
-  //     setState(() {
-  //       _reminders = decodedReminders.map((key, value) {
-  //         return MapEntry(DateTime.parse(key), List<String>.from(value));
-  //       });
-  //     });
-  //   }
-  //   _unreadNotifications = prefs.getStringList('unreadNotifications') ?? [];
-  //   setState(() {
-  //     _isLoading = false;
-  //   });
-  // }
   Future<void> _loadReminders() async {
     final prefs = await SharedPreferences.getInstance();
     final String? savedReminders = prefs.getString('reminders');
@@ -69,14 +54,6 @@ class _DashboardState extends State<Dashboard> {
         });
       });
     }
-
-    final dynamic rawData = prefs.get('unreadNotifications');
-    if (rawData is List<String>) {
-      _unreadNotifications = rawData;
-    } else {
-      _unreadNotifications = [];
-    }
-    _unreadNotifications = prefs.getStringList('unreadNotifications') ?? [];
     setState(() {
       _isLoading = false;
     });
@@ -115,17 +92,18 @@ class _DashboardState extends State<Dashboard> {
     await prefs.setString('reminders', jsonEncode(encodedReminders));
   }
 
-  Future<void> _markNotificationAsRead(String? notification) async {
-    if (notification != null) {
+  Future<void> _markNotificationAsRead(String? payload) async {
+    if (payload != null) {
       setState(() {
-        _unreadNotifications.remove(notification);
+        _unreadNotifications.removeWhere((n) => n['payload'] == payload);
+        _deliveredCount = _unreadNotifications.length;
       });
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(
+      await prefs.setString(
         'unreadNotifications',
-        _unreadNotifications,
-      ); // Save updated list to storage
+        jsonEncode(_unreadNotifications),
+      );
     }
   }
 
@@ -139,9 +117,15 @@ class _DashboardState extends State<Dashboard> {
 
     await _notificationsPlugin.initialize(
       settings,
-      onDidReceiveNotificationResponse: (response) {
-        _markNotificationAsRead(response.payload);
-        _notificationStream.add(null);
+      onDidReceiveNotificationResponse: (NotificationResponse response) async {
+        final payloadId = response.payload;
+        if (payloadId != null) {
+          final int id = int.tryParse(payloadId) ?? -1;
+          if (id != -1) {
+            await NotificationHelper.markNotificationAsDelivered(id);
+            _notificationStream.add(null); // trigger UI rebuild
+          }
+        }
       },
     );
   }
@@ -170,13 +154,18 @@ class _DashboardState extends State<Dashboard> {
   final StreamController<void> _notificationStream =
       StreamController<void>.broadcast();
   int _deliveredCount = 0;
+
   Future<void> _loadDeliveredNotifications() async {
-    final List<String> delivered =
-        await NotificationHelper.getDeliveredNotifications();
+    final delivered = await NotificationHelper.getDeliveredNotifications();
+
     setState(() {
       _unreadNotifications = delivered;
       _deliveredCount = delivered.length;
+      _isLoading = false;
     });
+
+    // final prefs = await SharedPreferences.getInstance();
+    // await prefs.setString('unreadNotifications', jsonEncode(delivered));
   }
 
   @override
@@ -192,62 +181,6 @@ class _DashboardState extends State<Dashboard> {
             backgroundColor: Colors.deepPurple[100],
             title: Text("Dashboard"),
             actions: [
-              // GestureDetector(
-              //   onTap: () async {
-              //     await Navigator.push(
-              //       context,
-              //       MaterialPageRoute(
-              //         builder:
-              //             (context) => NotificationScreen(
-              //               notifications: _unreadNotifications,
-              //               onClear: () async {
-              //                 setState(() {
-              //                   _unreadNotifications.clear();
-              //                 });
-              //
-              //                 final prefs =
-              //                     await SharedPreferences.getInstance();
-              //                 await prefs.setStringList(
-              //                   'unreadNotifications',
-              //                   [],
-              //                 );
-              //               },
-              //             ),
-              //       ),
-              //     );
-              //     _loadReminders(); // Reload notifications after returning
-              //     setState(() {});
-              //   },
-              //   child: Padding(
-              //     padding: const EdgeInsets.all(10),
-              //     child: Stack(
-              //       children: [
-              //         FaIcon(
-              //           FontAwesomeIcons.bell,
-              //           size: 20,
-              //           color: Colors.black,
-              //         ),
-              //         // Icon(Icons.notifications, size: 28), // Notification Icon
-              //         if (_unreadNotifications.isNotEmpty)
-              //           Positioned(
-              //             right: 0,
-              //             top: 0,
-              //             child: Container(
-              //               padding: EdgeInsets.all(4),
-              //               decoration: BoxDecoration(
-              //                 color: Colors.red,
-              //                 shape: BoxShape.circle,
-              //               ),
-              //               constraints: BoxConstraints(
-              //                 minWidth: 10,
-              //                 minHeight: 10,
-              //               ),
-              //             ),
-              //           ),
-              //       ],
-              //     ),
-              //   ),
-              // ),
               GestureDetector(
                 onTap: () async {
                   await Navigator.push(
@@ -256,21 +189,29 @@ class _DashboardState extends State<Dashboard> {
                       builder:
                           (context) => NotificationScreen(
                             notifications: _unreadNotifications,
+                            onClear: () async {
+                              setState(() {
+                                _unreadNotifications.clear();
+                                _deliveredCount = 0;
+                              });
+
+                              final prefs =
+                                  await SharedPreferences.getInstance();
+                              await prefs.setString(
+                                'unreadNotifications',
+                                jsonEncode([]),
+                              );
+                            },
                           ),
                     ),
                   );
-
-                  await _loadDeliveredNotifications();
+                  await _loadDeliveredNotifications(); // Refresh on return
                 },
                 child: Padding(
                   padding: const EdgeInsets.all(10),
                   child: Stack(
                     children: [
-                      const FaIcon(
-                        FontAwesomeIcons.bell,
-                        size: 20,
-                        color: Colors.black,
-                      ),
+                      const Icon(Icons.notifications, color: Colors.black),
                       if (_deliveredCount > 0)
                         Positioned(
                           right: 0,
@@ -289,18 +230,6 @@ class _DashboardState extends State<Dashboard> {
                         ),
                     ],
                   ),
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => Profile()),
-                  );
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Icon(Icons.person, size: 25, color: Colors.black),
                 ),
               ),
             ],
@@ -548,7 +477,7 @@ class _DashboardState extends State<Dashboard> {
                                     builder: (context) => CalendarScreen(),
                                   ),
                                 );
-                                _loadReminders(); // Reload notifications after returning
+                                //_loadReminders(); // Reload notifications after returning
                                 setState(() {});
                               },
                             ),
@@ -569,12 +498,12 @@ class _DashboardState extends State<Dashboard> {
                               subtitle: Text("Get Water Intake Schedule"),
                               trailing: Icon(Icons.arrow_forward_ios),
                               onTap: () async {
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => WaterIntakeScreen(),
-                                  ),
-                                );
+                                // await Navigator.push(
+                                //   context,
+                                //   MaterialPageRoute(
+                                //     builder: (context) => WaterIntakeScreen(),
+                                //   ),
+                                // );
                                 _loadWaterIntake();
                                 setState(() {});
                               },
@@ -658,7 +587,8 @@ class _DashboardState extends State<Dashboard> {
 
   @override
   void dispose() {
-    _notificationStream.close(); // Close the stream to prevent memory leaks
+    _notificationStream.close();
+
     super.dispose();
   }
 }

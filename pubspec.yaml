@@ -48,7 +48,7 @@ dependencies:
   timezone:
   table_calendar:
   curved_navigation_bar:
-  easy_date_timeline:
+  easy_date_timeline: ^2.0.9
   shimmer:
   camera:
   face_camera:
@@ -57,8 +57,14 @@ dependencies:
   carousel_slider:
   smooth_page_indicator:
   fl_chart:
-  intl:
+  intl: ^0.19.0
   flutter_lints:
+  uuid:
+  awesome_notifications: ^0.10.0
+
+
+
+
 
 
 

@@ -23,6 +23,7 @@ class _SplashScreenState extends State<SplashScreen> {
     final prefs = await SharedPreferences.getInstance();
     final onboardingSeen = prefs.getBool('onboarding_complete') ?? false;
 
+
     if (onboardingSeen) {
       Navigator.pushReplacement(
         context,
