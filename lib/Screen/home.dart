@@ -49,32 +49,5 @@ class _HomePageState extends State<HomePage> {
         },
       ),
     );
-    //   SafeArea(
-    //   child: Scaffold(
-    //     bottomNavigationBar: BottomNavigationBar(
-    //       selectedItemColor: Colors.blueAccent,
-    //       unselectedItemColor: Colors.black,
-    //       currentIndex: _currentIndex,
-    //       onTap: (index) {
-    //         setState(() {
-    //           _currentIndex = index;
-    //         });
-    //       },
-    //       items: [
-    //         BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-    //         BottomNavigationBarItem(
-    //           icon: Icon(Icons.qr_code_scanner_outlined),
-    //           label: "Scan",
-    //         ),
-    //         BottomNavigationBarItem(
-    //           icon: Icon(Icons.calendar_month),
-    //           label: "Note",
-    //         ),
-    //         BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
-    //       ],
-    //     ),
-    //     body: _screens[_currentIndex],
-    //   ),
-    // );
   }
 }

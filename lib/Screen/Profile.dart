@@ -152,14 +152,6 @@ class _ProfileState extends State<Profile> {
                                     ),
                                   ),
                                 ),
-
-                                // SizedBox(width: 10),
-                                // ElevatedButton.icon(
-                                //   onPressed:
-                                //       _isLoading ? null : () => _pickImage(ImageSource.gallery),
-                                //   icon: Icon(Icons.image),
-                                //   label: Text("Gallery"),
-                                // ),
                               ],
                             ),
                         ],

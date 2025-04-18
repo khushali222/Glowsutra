@@ -20,12 +20,12 @@ List<OnboardingContents> contents = [
     title: "Glow with Confidence",
     image: "assets/images/image2.png",
     desc:
-    "Discover personalized skincare routines and expert tips to keep your skin healthy, radiant, and refreshed every day.",
+        "Discover personalized skincare routines and expert tips to keep your skin healthy, radiant, and refreshed every day.",
   ),
   OnboardingContents(
     title: "Stay Hydrated, Stay Glowing",
     image: "assets/images/image3.png",
     desc:
-    "Get smart reminders to drink water regularly — because healthy, hydrated skin starts from within.",
+        "Get smart reminders to drink water regularly — because healthy, hydrated skin starts from within.",
   ),
 ];

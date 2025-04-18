@@ -38,8 +38,6 @@ dependencies:
   tflite_flutter: ^0.11.0
   path_provider: ^2.1.5
   image: ^4.5.3
-  google_ml_kit:
-  google_mlkit_face_detection:
   shared_preferences: ^2.5.2
   provider: ^6.1.2
   device_preview:
@@ -51,22 +49,14 @@ dependencies:
   easy_date_timeline: ^2.0.9
   shimmer:
   camera:
-  face_camera:
   fluttertoast:
   font_awesome_flutter:
   carousel_slider:
   smooth_page_indicator:
   fl_chart:
   intl: ^0.19.0
-  flutter_lints:
   uuid:
-  awesome_notifications: ^0.10.0
-
-
-
-
-
-
+  google_ml_kit:
 
 dev_dependencies:
   flutter_test:
@@ -97,8 +87,6 @@ flutter:
     - assets/models/skintonemodel.tflite
     - assets/models/model_unquant.tflite
     - assets/models/Wrinkles.tflite
-    - assets/models/skin_Acne.tflite
-    - assets/models/labels.txt
     - assets/images/
 
   #   - images/a_dot_burr.jpeg

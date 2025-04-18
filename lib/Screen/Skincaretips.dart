@@ -31,7 +31,11 @@ class _SkincaretipsState extends State<Skincaretips> {
             child: Container(
               // height: 200,
               // width: 400,
-              child: Image(image: NetworkImage("https://img.freepik.com/free-photo/medium-shot-woman-practicing-selfcare_23-2150396201.jpg?ga=GA1.1.92241902.1743491671&semt=ais_hybrid&w=740")),
+              child: Image(
+                image: NetworkImage(
+                  "https://img.freepik.com/free-photo/medium-shot-woman-practicing-selfcare_23-2150396201.jpg?ga=GA1.1.92241902.1743491671&semt=ais_hybrid&w=740",
+                ),
+              ),
             ),
           ),
           Column(
@@ -64,7 +68,6 @@ class _SkincaretipsState extends State<Skincaretips> {
               SizedBox(height: 50),
             ],
           ),
-
         ],
       ),
     );

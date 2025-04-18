@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../utiles/onboarding_content.dart';
 import '../utiles/size_config.dart';
 import 'home.dart';

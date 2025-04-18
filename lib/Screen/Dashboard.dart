@@ -11,7 +11,6 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
-import '../Serviece/helper.dart';
 import 'Calander.dart';
 import 'Home_Remedies.dart';
 import 'Profile.dart';
@@ -28,9 +27,7 @@ class Dashboard extends StatefulWidget {
 
 class _DashboardState extends State<Dashboard> {
   Map<DateTime, List<String>> _reminders = {};
-  //List<String> _unreadNotifications = [];
-  List<Map<String, dynamic>> _unreadNotifications = [];
-
+  List<String> _unreadNotifications = [];
   FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
   @override
@@ -39,9 +36,25 @@ class _DashboardState extends State<Dashboard> {
     _initializeNotifications();
     _loadReminders(); // Load reminders when dashboard starts
     _loadWaterIntake();
-    _loadDeliveredNotifications();
   }
 
+  // Future<void> _loadReminders() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final String? savedReminders = prefs.getString('reminders');
+  //
+  //   if (savedReminders != null) {
+  //     Map<String, dynamic> decodedReminders = jsonDecode(savedReminders);
+  //     setState(() {
+  //       _reminders = decodedReminders.map((key, value) {
+  //         return MapEntry(DateTime.parse(key), List<String>.from(value));
+  //       });
+  //     });
+  //   }
+  //   _unreadNotifications = prefs.getStringList('unreadNotifications') ?? [];
+  //   setState(() {
+  //     _isLoading = false;
+  //   });
+  // }
   Future<void> _loadReminders() async {
     final prefs = await SharedPreferences.getInstance();
     final String? savedReminders = prefs.getString('reminders');
@@ -54,6 +67,14 @@ class _DashboardState extends State<Dashboard> {
         });
       });
     }
+
+    final dynamic rawData = prefs.get('unreadNotifications');
+    if (rawData is List<String>) {
+      _unreadNotifications = rawData;
+    } else {
+      _unreadNotifications = [];
+    }
+    _unreadNotifications = prefs.getStringList('unreadNotifications') ?? [];
     setState(() {
       _isLoading = false;
     });
@@ -92,18 +113,17 @@ class _DashboardState extends State<Dashboard> {
     await prefs.setString('reminders', jsonEncode(encodedReminders));
   }
 
-  Future<void> _markNotificationAsRead(String? payload) async {
-    if (payload != null) {
+  Future<void> _markNotificationAsRead(String? notification) async {
+    if (notification != null) {
       setState(() {
-        _unreadNotifications.removeWhere((n) => n['payload'] == payload);
-        _deliveredCount = _unreadNotifications.length;
+        _unreadNotifications.remove(notification);
       });
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
+      await prefs.setStringList(
         'unreadNotifications',
-        jsonEncode(_unreadNotifications),
-      );
+        _unreadNotifications,
+      ); // Save updated list to storage
     }
   }
 
@@ -117,15 +137,9 @@ class _DashboardState extends State<Dashboard> {
 
     await _notificationsPlugin.initialize(
       settings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) async {
-        final payloadId = response.payload;
-        if (payloadId != null) {
-          final int id = int.tryParse(payloadId) ?? -1;
-          if (id != -1) {
-            await NotificationHelper.markNotificationAsDelivered(id);
-            _notificationStream.add(null); // trigger UI rebuild
-          }
-        }
+      onDidReceiveNotificationResponse: (response) {
+        _markNotificationAsRead(response.payload);
+        _notificationStream.add(null);
       },
     );
   }
@@ -153,28 +167,13 @@ class _DashboardState extends State<Dashboard> {
   bool _isLoading = true;
   final StreamController<void> _notificationStream =
       StreamController<void>.broadcast();
-  int _deliveredCount = 0;
-
-  Future<void> _loadDeliveredNotifications() async {
-    final delivered = await NotificationHelper.getDeliveredNotifications();
-
-    setState(() {
-      _unreadNotifications = delivered;
-      _deliveredCount = delivered.length;
-      _isLoading = false;
-    });
-
-    // final prefs = await SharedPreferences.getInstance();
-    // await prefs.setString('unreadNotifications', jsonEncode(delivered));
-  }
-
   @override
   Widget build(BuildContext context) {
     List<MapEntry<DateTime, String>> todaysReminders = _getTodaysReminders();
     return StreamBuilder<void>(
       stream: _notificationStream.stream,
       builder: (context, snapshot) {
-        _loadDeliveredNotifications();
+        _loadReminders(); // Reload reminders whenever a new notification is received
         return Scaffold(
           drawer: Drawer(),
           appBar: AppBar(
@@ -192,37 +191,42 @@ class _DashboardState extends State<Dashboard> {
                             onClear: () async {
                               setState(() {
                                 _unreadNotifications.clear();
-                                _deliveredCount = 0;
                               });
 
                               final prefs =
                                   await SharedPreferences.getInstance();
-                              await prefs.setString(
+                              await prefs.setStringList(
                                 'unreadNotifications',
-                                jsonEncode([]),
+                                [],
                               );
                             },
                           ),
                     ),
                   );
-                  await _loadDeliveredNotifications(); // Refresh on return
+                  _loadReminders(); // Reload notifications after returning
+                  setState(() {});
                 },
                 child: Padding(
                   padding: const EdgeInsets.all(10),
                   child: Stack(
                     children: [
-                      const Icon(Icons.notifications, color: Colors.black),
-                      if (_deliveredCount > 0)
+                      FaIcon(
+                        FontAwesomeIcons.bell,
+                        size: 20,
+                        color: Colors.black,
+                      ),
+                      // Icon(Icons.notifications, size: 28), // Notification Icon
+                      if (_unreadNotifications.isNotEmpty)
                         Positioned(
                           right: 0,
                           top: 0,
                           child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
+                            padding: EdgeInsets.all(4),
+                            decoration: BoxDecoration(
                               color: Colors.red,
                               shape: BoxShape.circle,
                             ),
-                            constraints: const BoxConstraints(
+                            constraints: BoxConstraints(
                               minWidth: 10,
                               minHeight: 10,
                             ),
@@ -230,6 +234,18 @@ class _DashboardState extends State<Dashboard> {
                         ),
                     ],
                   ),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => Profile()),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Icon(Icons.person, size: 25, color: Colors.black),
                 ),
               ),
             ],
@@ -477,7 +493,7 @@ class _DashboardState extends State<Dashboard> {
                                     builder: (context) => CalendarScreen(),
                                   ),
                                 );
-                                //_loadReminders(); // Reload notifications after returning
+                                _loadReminders(); // Reload notifications after returning
                                 setState(() {});
                               },
                             ),
@@ -498,12 +514,12 @@ class _DashboardState extends State<Dashboard> {
                               subtitle: Text("Get Water Intake Schedule"),
                               trailing: Icon(Icons.arrow_forward_ios),
                               onTap: () async {
-                                // await Navigator.push(
-                                //   context,
-                                //   MaterialPageRoute(
-                                //     builder: (context) => WaterIntakeScreen(),
-                                //   ),
-                                // );
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => WaterIntakeScreen(),
+                                  ),
+                                );
                                 _loadWaterIntake();
                                 setState(() {});
                               },
@@ -587,8 +603,7 @@ class _DashboardState extends State<Dashboard> {
 
   @override
   void dispose() {
-    _notificationStream.close();
-
+    _notificationStream.close(); // Close the stream to prevent memory leaks
     super.dispose();
   }
 }

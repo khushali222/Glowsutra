@@ -1,11 +1,8 @@
-import 'dart:convert';
 import 'dart:typed_data';
 import 'package:camera/camera.dart';
-import 'package:face_camera/face_camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:glow_sutra/Screen/test.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -49,8 +46,6 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
   ];
   final List<String> _acneLabels = ["Acne", "Normal"];
   final List<String> _wrinkleLabels = ["Wrinkled", "Normal"];
-
-  late FaceCameraController controller;
 
   @override
   void initState() {
@@ -326,45 +321,6 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
       context,
     ).showSnackBar(SnackBar(content: Text("Details Saved!")));
   }
-  // Future<void> _saveData() async {
-  //   SharedPreferences prefs = await SharedPreferences.getInstance();
-  //
-  //   await prefs.setString('acneStatus', _resultAcne);
-  //   await prefs.setString('skinType', _resultType);
-  //   await prefs.setString('skinTone', _resultTone);
-  //   await prefs.setString('wrinkles', _resultWrinkle);
-  //   await prefs.setString('precautions', _precautions);
-  //
-  //   if (widget.image != null) {
-  //     await prefs.setString('imagePath', widget.image!.path);
-  //   }
-  //
-  //   final now = DateTime.now();
-  //   Map<String, dynamic> entry = {
-  //     'timestamp': now.toIso8601String(),
-  //     'acneStatus': _resultAcne,
-  //     'skinType': _resultType,
-  //     'skinTone': _resultTone,
-  //     'wrinkles': _resultWrinkle,
-  //     'precautions': _precautions,
-  //     'imagePath': widget.image?.path ?? '',
-  //   };
-  //
-  //   List<Map<String, dynamic>> history = [];
-  //
-  //   final saved = prefs.getString('weeklySkinAnalysis');
-  //   if (saved != null) {
-  //     List<dynamic> decoded = jsonDecode(saved);
-  //     history = decoded.cast<Map<String, dynamic>>();
-  //   }
-  //
-  //   history.add(entry);
-  //   await prefs.setString('weeklySkinAnalysis', jsonEncode(history));
-  //
-  //   ScaffoldMessenger.of(context).showSnackBar(
-  //     SnackBar(content: Text("Details Saved!")),
-  //   );
-  // }
 
   Widget _buildShimmerEffect() {
     return Shimmer.fromColors(
@@ -535,18 +491,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
                                         '${_precautions}',
                                         Colors.black,
                                       ),
-                                      // SizedBox(height: 5),
-                                      // Row(
-                                      //   children: [
-                                      //     Text(
-                                      //       "Skin Analyze Report",
-                                      //       style: TextStyle(
-                                      //         fontSize: 17,
-                                      //         fontWeight: FontWeight.bold,
-                                      //       ),
-                                      //     ),
-                                      //   ],
-                                      // ),
+
                                       SizedBox(height: 5),
                                       Row(
                                         mainAxisAlignment:
@@ -576,14 +521,6 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
                                               ),
                                             ),
                                           ),
-
-                                          // SizedBox(width: 10),
-                                          // ElevatedButton.icon(
-                                          //   onPressed:
-                                          //       _isLoading ? null : () => _pickImage(ImageSource.gallery),
-                                          //   icon: Icon(Icons.image),
-                                          //   label: Text("Gallery"),
-                                          // ),
                                         ],
                                       ),
                                     ],
@@ -606,21 +543,6 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
                         ),
 
                     SizedBox(height: 70),
-                    // ElevatedButton.icon(
-                    //   onPressed: () async {
-                    //     await Navigator.push(
-                    //       context,
-                    //       MaterialPageRoute(
-                    //         builder: (context) => CameraScreen(),
-                    //       ),
-                    //     );
-                    //     _loadSavedData();
-                    //     setState(() {});
-                    //   },
-                    //   icon: Icon(Icons.image),
-                    //   label: Text("Gallery"),
-                    // ),
-                    // SizedBox(height: 70),
                   ],
                 ),
               ),

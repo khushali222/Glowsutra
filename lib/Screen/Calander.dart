@@ -9,8 +9,6 @@ import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:easy_date_timeline/easy_date_timeline.dart';
 
-import '../Serviece/helper.dart';
-
 class CalendarScreen extends StatefulWidget {
   @override
   _CalendarScreenState createState() => _CalendarScreenState();
@@ -117,7 +115,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   : DateTimeComponents.dayOfMonthAndTime)
               : null,
     );
-    NotificationHelper.saveScheduledNotification(reminder, scheduledTime);
+    _saveNotificationWhenTimeArrives(reminder, scheduledTime);
   }
 
   void _saveNotificationWhenTimeArrives(
@@ -129,23 +127,57 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     Future.delayed(delay, () async {
       final prefs = await SharedPreferences.getInstance();
-      List<String> notifications =
+
+      List<String> notificationsJson =
           prefs.getStringList('unreadNotifications') ?? [];
 
       String formattedTime =
           "${scheduledTime.hour % 12 == 0 ? 12 : scheduledTime.hour % 12}:${scheduledTime.minute.toString().padLeft(2, '0')} ${scheduledTime.hour >= 12 ? "PM" : "AM"}";
       String formattedDate = DateFormat('yyyy-MM-dd').format(scheduledTime);
-      String finalMessage = "$reminder - $formattedTime - $formattedDate";
 
-      //if (!notifications.contains(finalMessage)) {
-      notifications.add(finalMessage);
-      await prefs.setStringList('unreadNotifications', notifications);
-      print("check notification ${notifications}");
+      Map<String, String> notificationMap = {
+        "reminder": reminder,
+        "time": formattedTime,
+        "date": formattedDate,
+        "payload": scheduledTime.toString(),
+      };
+
+      notificationsJson.add(jsonEncode(notificationMap));
+      await prefs.setStringList('unreadNotifications', notificationsJson);
+
+      print("✅ Saved notification: $notificationMap");
+
       if (mounted) setState(() {});
-      // }
     });
   }
 
+  // Future<void> _togglePresetReminder(String reminder, String planType) async {
+  //   setState(() {
+  //     _presetReminders[reminder] = planType;
+  //   });
+  //
+  //   _savePresetSettings();
+  //   _cancelScheduledNotifications(reminder);
+  //
+  //   if (planType != "off") {
+  //     final now = DateTime.now();
+  //     final List<int> reminderHours = [8, 10, 13, 15, 16, 19, 20, 22];
+  //
+  //     for (int hour in reminderHours) {
+  //       DateTime reminderTime = DateTime(now.year, now.month, now.day, hour);
+  //
+  //       // Only schedule if it's still ahead of the current time
+  //       if (reminderTime.isAfter(now)) {
+  //         _scheduleNotification(
+  //           reminder,
+  //           reminderTime,
+  //           isRepeating: true,
+  //           repeatType: planType,
+  //         );
+  //       }
+  //     }
+  //   }
+  // }
   Future<void> _togglePresetReminder(String reminder, String planType) async {
     setState(() {
       _presetReminders[reminder] = planType;
@@ -156,12 +188,28 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     if (planType != "off") {
       final now = DateTime.now();
-      final List<int> reminderHours = [8, 10, 13, 15, 16, 19, 20, 22];
 
-      for (int hour in reminderHours) {
-        DateTime reminderTime = DateTime(now.year, now.month, now.day, hour);
+      // Updated: include minutes
+      final List<Map<String, int>> reminderTimes = [
+        {'hour': 8, 'minute': 0},
+        {'hour': 10, 'minute': 30},
+        {'hour': 14, 'minute': 59},
+        {'hour': 15, 'minute': 58},
+        {'hour': 16, 'minute': 0},
+        {'hour': 19, 'minute': 45},
+        {'hour': 20, 'minute': 0},
+        {'hour': 22, 'minute': 0},
+      ];
 
-        // Only schedule if it's still ahead of the current time
+      for (var time in reminderTimes) {
+        DateTime reminderTime = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          time['hour']!,
+          time['minute']!,
+        );
+
         if (reminderTime.isAfter(now)) {
           _scheduleNotification(
             reminder,
