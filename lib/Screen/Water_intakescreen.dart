@@ -50,11 +50,6 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
     });
   }
 
-  // Future<void> _saveNotificationPreferences() async {
-  //   SharedPreferences prefs = await SharedPreferences.getInstance();
-  //   await prefs.setBool('unreadNotifications', notificationsEnabled);
-  //   await prefs.setString('reminder_type', selectedReminder);
-  // }
   Future<void> _saveNotificationPreferences() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setBool(
@@ -100,50 +95,6 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
     );
   }
 
-  // for formatting date/time
-
-  // void onTapNotification(String payload) async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //
-  //   // Retrieve the saved notifications
-  //   List<String> notificationsJson =
-  //       prefs.getStringList('unreadNotifications') ?? [];
-  //
-  //   // Decode the notifications into a list of maps
-  //   List<Map<String, dynamic>> notifications =
-  //       notificationsJson
-  //           .map((item) => jsonDecode(item) as Map<String, dynamic>)
-  //           .toList();
-  //
-  //   // Convert the payload (which is a string like "2025-04-16 16:20:00.000") into DateTime
-  //   DateTime payloadTime = DateFormat("yyyy-MM-dd HH:mm:ss.SSS").parse(payload);
-  //
-  //   // Filter out the notification with the matching payload time
-  //   notifications.removeWhere((notification) {
-  //     String notificationTimeStr =
-  //         notification['time']; // e.g., "2025-04-16 16:20:00.000"
-  //     DateTime notificationTime = DateFormat(
-  //       "yyyy-MM-dd HH:mm:ss.SSS",
-  //     ).parse(notificationTimeStr);
-  //     return notificationTime.isAtSameMomentAs(
-  //       payloadTime,
-  //     ); // Compare as DateTime objects
-  //   });
-  //
-  //   // Convert the remaining notifications back to JSON strings
-  //   List<String> updatedNotificationsJson =
-  //       notifications.map((notification) => jsonEncode(notification)).toList();
-  //
-  //   // Store the updated notifications list back into SharedPreferences
-  //   await prefs.setStringList('unreadNotifications', updatedNotificationsJson);
-  //
-  //   // Optionally, update UI or state
-  //   setState(() {
-  //     // You can update your state to reflect the changes if needed
-  //   });
-  //
-  //   print("✅ Notification removed with payload time: $payload");
-  // }
   void onTapNotification(String payload) async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -156,27 +107,29 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
             .toList();
 
     DateTime payloadTime = DateTime.parse(payload);
-
+    print("update notific before $notifications");
+    // Remove the notification with the corresponding payload time
     notifications.removeWhere((notification) {
       String? storedPayload = notification['payload'];
       if (storedPayload == null) return false;
       DateTime storedTime = DateTime.parse(storedPayload);
       return storedTime.isAtSameMomentAs(payloadTime);
     });
-
+    print("update notific $notifications");
+    // Save the updated notifications list back to SharedPreferences
     List<String> updatedJson =
         notifications.map((notification) => jsonEncode(notification)).toList();
 
     await prefs.setStringList('unreadNotifications', updatedJson);
 
-    // ✅ Fix: Only call setState if widget is still mounted
+    // Only update the state if the widget is still mounted
     if (mounted) {
       setState(() {
-        // Any UI update
+        // Update the UI state, if needed, or just refresh the list
       });
     }
 
-    print("✅ Removed notification with payload time: $payload");
+    print("Removed notification with payload time: $payload");
   }
 
   void _toggleNotifications(bool value) async {
@@ -184,6 +137,8 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
     setState(() {
       notificationsEnabled = value;
     });
+
+    prefs.setBool('notificationsEnabled', notificationsEnabled);
 
     if (notificationsEnabled && selectedReminder != "None") {
       bool alreadyScheduled = prefs.getBool('alreadyScheduled') ?? false;
@@ -193,9 +148,9 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
         prefs.setBool('alreadyScheduled', true);
       }
     } else {
+      // Disable notifications
       prefs.setBool('alreadyScheduled', false);
-
-      prefs.setStringList('unreadNotifications', []);
+      // prefs.setStringList('unreadNotifications', []);
       flutterLocalNotificationsPlugin.cancelAll();
       ScaffoldMessenger.of(
         context,
@@ -231,7 +186,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
   void _scheduleNotifications(int days) {
     flutterLocalNotificationsPlugin.cancelAll();
 
-    final List<int> reminderHours = [9, 12, 14, 15, 16, 17, 18, 19, 21, 22];
+    final List<int> reminderHours = [9, 11, 14, 15, 16, 17, 18, 19, 21, 22];
     final List<int> reminderMinutes = [
       1,
       2,
@@ -354,6 +309,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
       payload: scheduledTime.toString(),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
     );
+    print("calling abc");
     //_saveWaterIntakeNotification(message);
     _saveNotificationWhenTimeArrives(message, scheduledTime);
   }
@@ -367,10 +323,10 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
 
     Future.delayed(delay, () async {
       final prefs = await SharedPreferences.getInstance();
-
+      bool? scheduleenable = prefs.getBool('alreadyScheduled');
       List<String> notificationsJson =
           prefs.getStringList('unreadNotifications') ?? [];
-
+      print("shcedule enable $scheduleenable");
       String formattedTime =
           "${scheduledTime.hour % 12 == 0 ? 12 : scheduledTime.hour % 12}:${scheduledTime.minute.toString().padLeft(2, '0')} ${scheduledTime.hour >= 12 ? "PM" : "AM"}";
       String formattedDate = DateFormat('yyyy-MM-dd').format(scheduledTime);
@@ -381,11 +337,12 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
         "date": formattedDate,
         "payload": scheduledTime.toString(),
       };
+      if (scheduleenable == true) {
+        notificationsJson.add(jsonEncode(notificationMap));
+        await prefs.setStringList('unreadNotifications', notificationsJson);
 
-      notificationsJson.add(jsonEncode(notificationMap));
-      await prefs.setStringList('unreadNotifications', notificationsJson);
-
-      print("Saved notification: $notificationMap");
+        print("Saved notification: $notificationMap");
+      }
 
       if (mounted) setState(() {});
     });
