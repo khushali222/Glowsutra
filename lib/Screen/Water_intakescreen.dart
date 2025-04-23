@@ -132,8 +132,50 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
     print("Removed notification with payload time: $payload");
   }
 
+  // void _toggleNotifications(bool value) async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   List<String> waterList =
+  //       prefs.getStringList('saved_notification_ids') ?? [];
+  //   print("water list $waterList");
+  //   setState(() {
+  //     notificationsEnabled = value;
+  //   });
+  //
+  //   prefs.setBool('notificationsEnabled', notificationsEnabled);
+  //
+  //   if (notificationsEnabled && selectedReminder != "None") {
+  //     bool alreadyScheduled = prefs.getBool('alreadyScheduled') ?? false;
+  //     if (!alreadyScheduled) {
+  //       await flutterLocalNotificationsPlugin.cancelAll();
+  //       _scheduleNotifications(_getDaysFromReminder(selectedReminder));
+  //       prefs.setBool('alreadyScheduled', true);
+  //     }
+  //   } else {
+  //     // Disable notifications
+  //     prefs.setBool('alreadyScheduled', false);
+  //     // prefs.setStringList('unreadNotifications', []);
+  //     if (waterList.isNotEmpty) {
+  //       for (String id in waterList) {
+  //         await flutterLocalNotificationsPlugin.cancel(int.parse(id));
+  //       }
+  //
+  //       // Optionally clear the saved IDs if notifications are disabled
+  //       await prefs.remove('saved_notification_ids');
+  //     }
+  //
+  //     ScaffoldMessenger.of(
+  //       context,
+  //     ).showSnackBar(SnackBar(content: Text("Notifications Disabled!")));
+  //   }
+  //
+  //   _saveNotificationPreferences();
+  // }
   void _toggleNotifications(bool value) async {
     final prefs = await SharedPreferences.getInstance();
+    List<String> waterList =
+        prefs.getStringList('saved_notification_ids') ?? [];
+    print("water list $waterList");
+
     setState(() {
       notificationsEnabled = value;
     });
@@ -143,18 +185,33 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
     if (notificationsEnabled && selectedReminder != "None") {
       bool alreadyScheduled = prefs.getBool('alreadyScheduled') ?? false;
       if (!alreadyScheduled) {
-        await flutterLocalNotificationsPlugin.cancelAll();
+        // Optional: cancel previously saved notifications first
+        for (String id in waterList) {
+          await flutterLocalNotificationsPlugin.cancel(int.parse(id));
+        }
+
         _scheduleNotifications(_getDaysFromReminder(selectedReminder));
         prefs.setBool('alreadyScheduled', true);
       }
     } else {
       // Disable notifications
       prefs.setBool('alreadyScheduled', false);
-      // prefs.setStringList('unreadNotifications', []);
-      flutterLocalNotificationsPlugin.cancelAll();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Notifications Disabled!")));
+
+      if (waterList.isNotEmpty) {
+        for (String id in waterList) {
+          await flutterLocalNotificationsPlugin.cancel(int.parse(id));
+        }
+
+        // Optionally clear the saved IDs
+        await prefs.remove('saved_notification_ids');
+      }
+
+      // ✅ Safely show snackbar only if widget is still mounted
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Notifications Disabled!")),
+        );
+      }
     }
 
     _saveNotificationPreferences();
@@ -184,9 +241,9 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
   //   }
   // }
   void _scheduleNotifications(int days) {
-    flutterLocalNotificationsPlugin.cancelAll();
+   // flutterLocalNotificationsPlugin.cancelAll();
 
-    final List<int> reminderHours = [10, 11, 14, 15, 16, 17, 18, 19, 21, 22];
+    final List<int> reminderHours = [11, 12, 14, 15, 16, 17, 18, 19, 21, 22];
     final List<int> reminderMinutes = [
       1,
       2,
@@ -299,6 +356,12 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
       android: androidDetails,
     );
     int id = dayOffset * 10000 + hour * 100 + minute;
+    List<String> existingIds =
+        prefs.getStringList('saved_notification_ids') ?? [];
+    if (!existingIds.contains(id.toString())) {
+      existingIds.add(id.toString());
+      await prefs.setStringList('saved_notification_ids', existingIds);
+    }
     await flutterLocalNotificationsPlugin.zonedSchedule(
       id, //for only one day
       // hour + dayOffset * 24, //for only one day
@@ -311,22 +374,32 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
     );
     print("calling abc");
     //_saveWaterIntakeNotification(message);
-    _saveNotificationWhenTimeArrives(message, scheduledTime);
+    _saveNotificationWhenTimeArrives(
+      message,
+      scheduledTime,
+      "water_notification",
+      id.toString(),
+    );
   }
 
   void _saveNotificationWhenTimeArrives(
     String reminder,
     DateTime scheduledTime,
+    String screenKey,
+    String id,
   ) {
     Duration delay = scheduledTime.difference(DateTime.now());
     if (delay.isNegative) return;
 
     Future.delayed(delay, () async {
       final prefs = await SharedPreferences.getInstance();
-      bool? scheduleenable = prefs.getBool('alreadyScheduled');
-      List<String> notificationsJson =
-          prefs.getStringList('unreadNotifications') ?? [];
-      print("shcedule enable $scheduleenable");
+      bool? scheduleEnable = prefs.getBool('alreadyScheduled');
+
+      // Use dynamic key based on the screen
+      String storageKey = '${screenKey}_unreadNotifications';
+
+      List<String> notificationsJson = prefs.getStringList(storageKey) ?? [];
+
       String formattedTime =
           "${scheduledTime.hour % 12 == 0 ? 12 : scheduledTime.hour % 12}:${scheduledTime.minute.toString().padLeft(2, '0')} ${scheduledTime.hour >= 12 ? "PM" : "AM"}";
       String formattedDate = DateFormat('yyyy-MM-dd').format(scheduledTime);
@@ -336,17 +409,54 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
         "time": formattedTime,
         "date": formattedDate,
         "payload": scheduledTime.toString(),
+        "source": screenKey,
+        "id": id,
       };
-      if (scheduleenable == true) {
-        notificationsJson.add(jsonEncode(notificationMap));
-        await prefs.setStringList('unreadNotifications', notificationsJson);
 
-        print("Saved notification: $notificationMap");
+      if (scheduleEnable == true) {
+        notificationsJson.add(jsonEncode(notificationMap));
+        await prefs.setStringList(storageKey, notificationsJson);
+
+        print("✅ Saved notification to [$storageKey]: $notificationMap");
       }
 
       if (mounted) setState(() {});
     });
   }
+
+  // void _saveNotificationWhenTimeArrives(
+  //   String reminder,
+  //   DateTime scheduledTime,
+  // ) {
+  //   Duration delay = scheduledTime.difference(DateTime.now());
+  //   if (delay.isNegative) return;
+  //
+  //   Future.delayed(delay, () async {
+  //     final prefs = await SharedPreferences.getInstance();
+  //     bool? scheduleenable = prefs.getBool('alreadyScheduled');
+  //     List<String> notificationsJson =
+  //         prefs.getStringList('unreadNotifications') ?? [];
+  //     print("shcedule enable $scheduleenable");
+  //     String formattedTime =
+  //         "${scheduledTime.hour % 12 == 0 ? 12 : scheduledTime.hour % 12}:${scheduledTime.minute.toString().padLeft(2, '0')} ${scheduledTime.hour >= 12 ? "PM" : "AM"}";
+  //     String formattedDate = DateFormat('yyyy-MM-dd').format(scheduledTime);
+  //
+  //     Map<String, String> notificationMap = {
+  //       "reminder": reminder,
+  //       "time": formattedTime,
+  //       "date": formattedDate,
+  //       "payload": scheduledTime.toString(),
+  //     };
+  //     if (scheduleenable == true) {
+  //       notificationsJson.add(jsonEncode(notificationMap));
+  //       await prefs.setStringList('unreadNotifications', notificationsJson);
+  //
+  //       print("Saved notification: $notificationMap");
+  //     }
+  //
+  //     if (mounted) setState(() {});
+  //   });
+  // }
 
   // Future<void> _saveWaterIntakeNotification(String message) async {
   //   SharedPreferences prefs = await SharedPreferences.getInstance();

@@ -36,6 +36,7 @@ class _DashboardState extends State<Dashboard> {
     _initializeNotifications();
     _loadReminders(); // Load reminders when dashboard starts
     _loadWaterIntake();
+    _loadUnreadNotifications();
   }
 
   // Future<void> _loadReminders() async {
@@ -167,27 +168,127 @@ class _DashboardState extends State<Dashboard> {
   bool _isLoading = true;
   final StreamController<void> _notificationStream =
       StreamController<void>.broadcast();
+  Future<void> _loadUnreadNotifications() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Load both water and calendar notifications from SharedPreferences
+    final waterNotifications =
+        prefs.getStringList('water_notification_unreadNotifications') ?? [];
+    final calendarNotifications =
+        prefs.getStringList('calender_notification_unreadNotifications') ?? [];
+
+    // Combine both lists if needed (optional step depending on your needs)
+    final allNotifications = [...waterNotifications, ...calendarNotifications];
+
+    if (allNotifications.isEmpty) {
+      setState(() {
+        _unreadNotifications = [];
+      });
+      return;
+    }
+
+    final seen = <String>{};
+    final uniqueNotifications = <String>[];
+
+    // Loop through all notifications and keep only unique ones
+    for (var item in allNotifications) {
+      final parsed = jsonDecode(item);
+      final uniqueKey = jsonEncode(parsed); // Compare entire notification
+      if (!seen.contains(uniqueKey)) {
+        seen.add(uniqueKey);
+        uniqueNotifications.add(item);
+      }
+    }
+
+    // Save unique notifications back to SharedPreferences
+    await prefs.setStringList('unreadNotifications', uniqueNotifications);
+
+    // Update the state
+    setState(() {
+      _unreadNotifications = uniqueNotifications;
+    });
+
+   // print("Filtered notifications: $_unreadNotifications");
+  }
+
   @override
   Widget build(BuildContext context) {
     List<MapEntry<DateTime, String>> todaysReminders = _getTodaysReminders();
     return StreamBuilder<void>(
       stream: _notificationStream.stream,
       builder: (context, snapshot) {
-        _loadReminders(); // Reload reminders whenever a new notification is received
+        _loadUnreadNotifications();
+        //  _loadReminders(); // Reload reminders whenever a new notification is received
         return Scaffold(
           drawer: Drawer(),
           appBar: AppBar(
             backgroundColor: Colors.deepPurple[100],
             title: Text("Dashboard"),
             actions: [
+              // GestureDetector(
+              //   onTap: () async {
+              //     await Navigator.push(
+              //       context,
+              //       MaterialPageRoute(
+              //         builder:
+              //             (context) => NotificationScreen(
+              //               notifications: _unreadNotifications,
+              //               onClear: () async {
+              //                 setState(() {
+              //                   _unreadNotifications.clear();
+              //                 });
+              //
+              //                 final prefs =
+              //                     await SharedPreferences.getInstance();
+              //                 await prefs.setStringList(
+              //                   'unreadNotifications',
+              //                   [],
+              //                 );
+              //               },
+              //             ),
+              //       ),
+              //     );
+              //     _loadReminders(); // Reload notifications after returning
+              //     setState(() {});
+              //   },
+              //   child: Padding(
+              //     padding: const EdgeInsets.all(10),
+              //     child: Stack(
+              //       children: [
+              //         FaIcon(
+              //           FontAwesomeIcons.bell,
+              //           size: 20,
+              //           color: Colors.black,
+              //         ),
+              //         // Icon(Icons.notifications, size: 28), // Notification Icon
+              //         if (_unreadNotifications.isNotEmpty)
+              //           Positioned(
+              //             right: 0,
+              //             top: 0,
+              //             child: Container(
+              //               padding: EdgeInsets.all(4),
+              //               decoration: BoxDecoration(
+              //                 color: Colors.red,
+              //                 shape: BoxShape.circle,
+              //               ),
+              //               constraints: BoxConstraints(
+              //                 minWidth: 10,
+              //                 minHeight: 10,
+              //               ),
+              //             ),
+              //           ),
+              //       ],
+              //     ),
+              //   ),
+              // ),
               GestureDetector(
                 onTap: () async {
+                  // Navigate to the NotificationScreen
                   await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder:
                           (context) => NotificationScreen(
-                            notifications: _unreadNotifications,
                             onClear: () async {
                               setState(() {
                                 _unreadNotifications.clear();
@@ -195,16 +296,22 @@ class _DashboardState extends State<Dashboard> {
 
                               final prefs =
                                   await SharedPreferences.getInstance();
+                              // Clear both water and calendar notifications in SharedPreferences
                               await prefs.setStringList(
-                                'unreadNotifications',
+                                'water_notification_unreadNotifications',
+                                [],
+                              );
+                              await prefs.setStringList(
+                                'calender_notification_unreadNotifications',
                                 [],
                               );
                             },
                           ),
                     ),
                   );
-                  _loadReminders(); // Reload notifications after returning
-                  setState(() {});
+                  // After returning, reload notifications to reflect changes
+                  _loadUnreadNotifications(); // Reload the unread notifications after coming back
+                  setState(() {}); // Refresh the main screen UI
                 },
                 child: Padding(
                   padding: const EdgeInsets.all(10),
@@ -215,18 +322,18 @@ class _DashboardState extends State<Dashboard> {
                         size: 20,
                         color: Colors.black,
                       ),
-                      // Icon(Icons.notifications, size: 28), // Notification Icon
+                      // Show red dot if there are unread notifications
                       if (_unreadNotifications.isNotEmpty)
                         Positioned(
                           right: 0,
                           top: 0,
                           child: Container(
-                            padding: EdgeInsets.all(4),
+                            padding: const EdgeInsets.all(4),
                             decoration: BoxDecoration(
                               color: Colors.red,
                               shape: BoxShape.circle,
                             ),
-                            constraints: BoxConstraints(
+                            constraints: const BoxConstraints(
                               minWidth: 10,
                               minHeight: 10,
                             ),
@@ -236,6 +343,7 @@ class _DashboardState extends State<Dashboard> {
                   ),
                 ),
               ),
+
               GestureDetector(
                 onTap: () {
                   Navigator.push(

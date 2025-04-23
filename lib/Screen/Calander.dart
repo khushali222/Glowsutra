@@ -201,12 +201,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       );
     }
-    _saveNotificationWhenTimeArrives(reminder, scheduledTime);
+    _saveNotificationWhenTimeArrives(
+      reminder,
+      scheduledTime,
+      "calender_notification",
+    );
   }
 
   void _saveNotificationWhenTimeArrives(
     String reminder,
     DateTime scheduledTime,
+    String screenKey, // 👈 Add this parameter to distinguish screens
   ) {
     Duration delay = scheduledTime.difference(DateTime.now());
     if (delay.isNegative) return;
@@ -215,21 +220,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
       final prefs = await SharedPreferences.getInstance();
       bool? scheduleEnable = prefs.getBool('alreadyScheduled');
 
-      // Load existing notifications
-      List<String> notificationsJson =
-          prefs.getStringList('unreadNotifications') ?? [];
+      // Use dynamic key based on the screen
+      String storageKey = '${screenKey}_unreadNotifications';
 
-      // Filter out any non-JSON strings (safety check)
-      notificationsJson =
-          notificationsJson.where((item) {
-            try {
-              jsonDecode(item);
-              return true;
-            } catch (_) {
-              print("❌ Removing non-JSON item: $item");
-              return false;
-            }
-          }).toList();
+      List<String> notificationsJson = prefs.getStringList(storageKey) ?? [];
 
       String formattedTime =
           "${scheduledTime.hour % 12 == 0 ? 12 : scheduledTime.hour % 12}:${scheduledTime.minute.toString().padLeft(2, '0')} ${scheduledTime.hour >= 12 ? "PM" : "AM"}";
@@ -240,15 +234,63 @@ class _CalendarScreenState extends State<CalendarScreen> {
         "time": formattedTime,
         "date": formattedDate,
         "payload": scheduledTime.toString(),
+        "source": screenKey,
       };
 
       notificationsJson.add(jsonEncode(notificationMap));
-      await prefs.setStringList('unreadNotifications', notificationsJson);
-      print("✅ Saved notification: $notificationMap");
+      await prefs.setStringList(storageKey, notificationsJson);
+
+      print("✅ Saved notification to [$storageKey]: $notificationMap");
 
       if (mounted) setState(() {});
     });
   }
+
+  // void _saveNotificationWhenTimeArrives(
+  //   String reminder,
+  //   DateTime scheduledTime,
+  // ) {
+  //   Duration delay = scheduledTime.difference(DateTime.now());
+  //   if (delay.isNegative) return;
+  //
+  //   Future.delayed(delay, () async {
+  //     final prefs = await SharedPreferences.getInstance();
+  //     bool? scheduleEnable = prefs.getBool('alreadyScheduled');
+  //
+  //     // Load existing notifications
+  //     List<String> notificationsJson =
+  //         prefs.getStringList('unreadNotifications') ?? [];
+  //
+  //     // Filter out any non-JSON strings (safety check)
+  //     notificationsJson =
+  //         notificationsJson.where((item) {
+  //           try {
+  //             jsonDecode(item);
+  //             return true;
+  //           } catch (_) {
+  //             print("❌ Removing non-JSON item: $item");
+  //             return false;
+  //           }
+  //         }).toList();
+  //
+  //     String formattedTime =
+  //         "${scheduledTime.hour % 12 == 0 ? 12 : scheduledTime.hour % 12}:${scheduledTime.minute.toString().padLeft(2, '0')} ${scheduledTime.hour >= 12 ? "PM" : "AM"}";
+  //     String formattedDate = DateFormat('yyyy-MM-dd').format(scheduledTime);
+  //
+  //     Map<String, String> notificationMap = {
+  //       "reminder": reminder,
+  //       "time": formattedTime,
+  //       "date": formattedDate,
+  //       "payload": scheduledTime.toString(),
+  //     };
+  //
+  //     notificationsJson.add(jsonEncode(notificationMap));
+  //     await prefs.setStringList('unreadNotifications', notificationsJson);
+  //     print("✅ Saved notification: $notificationMap");
+  //
+  //     if (mounted) setState(() {});
+  //   });
+  // }
 
   Future<void> _loadUnreadNotifications() async {
     final prefs = await SharedPreferences.getInstance();
