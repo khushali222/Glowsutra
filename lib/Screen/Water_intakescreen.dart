@@ -186,7 +186,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
   void _scheduleNotifications(int days) {
     flutterLocalNotificationsPlugin.cancelAll();
 
-    final List<int> reminderHours = [9, 11, 14, 15, 16, 17, 18, 19, 21, 22];
+    final List<int> reminderHours = [10, 11, 14, 15, 16, 17, 18, 19, 21, 22];
     final List<int> reminderMinutes = [
       1,
       2,

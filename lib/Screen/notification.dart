@@ -27,32 +27,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
     _loadUnreadNotifications();
   }
 
-  // Future<void> _loadUnreadNotifications() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   final storedList = prefs.getStringList('unreadNotifications') ?? [];
-  //
-  //   // Use a Set to track unique time+date combinations
-  //   final seen = <String>{};
-  //   final uniqueNotifications = <String>[];
-  //
-  //   for (var item in storedList) {
-  //     final parsed = jsonDecode(item);
-  //     final uniqueKey = '${parsed["time"]}_${parsed["date"]}';
-  //     if (!seen.contains(uniqueKey)) {
-  //       seen.add(uniqueKey);
-  //       uniqueNotifications.add(item);
-  //     }
-  //   }
-  //
-  //   // Save back the deduplicated list (optional but recommended)
-  //   await prefs.setStringList('unreadNotifications', uniqueNotifications);
-  //
-  //   setState(() {
-  //     _unreadNotifications = uniqueNotifications;
-  //   });
-  //
-  //   print("Filtered notifications: $_unreadNotifications");
-  // }
   Future<void> _loadUnreadNotifications() async {
     final prefs = await SharedPreferences.getInstance();
     final storedList = prefs.getStringList('unreadNotifications') ?? [];
@@ -69,7 +43,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
     for (var item in storedList) {
       final parsed = jsonDecode(item);
-      final uniqueKey = '${parsed["time"]}_${parsed["date"]}';
+      final uniqueKey = jsonEncode(parsed); // Compare entire notification
       if (!seen.contains(uniqueKey)) {
         seen.add(uniqueKey);
         uniqueNotifications.add(item);
@@ -85,6 +59,37 @@ class _NotificationScreenState extends State<NotificationScreen> {
     print("Filtered notifications: $_unreadNotifications");
   }
 
+  // Future<void> _loadUnreadNotifications() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final storedList = prefs.getStringList('unreadNotifications') ?? [];
+  //
+  //   if (storedList.isEmpty) {
+  //     setState(() {
+  //       _unreadNotifications = [];
+  //     });
+  //     return;
+  //   }
+  //
+  //   final seen = <String>{};
+  //   final uniqueNotifications = <String>[];
+  //
+  //   for (var item in storedList) {
+  //     final parsed = jsonDecode(item);
+  //     final uniqueKey = '${parsed["time"]}_${parsed["date"]}';
+  //     if (!seen.contains(uniqueKey)) {
+  //       seen.add(uniqueKey);
+  //       uniqueNotifications.add(item);
+  //     }
+  //   }
+  //
+  //   await prefs.setStringList('unreadNotifications', uniqueNotifications);
+  //
+  //   setState(() {
+  //     _unreadNotifications = uniqueNotifications;
+  //   });
+  //
+  //   print("Filtered notifications: $_unreadNotifications");
+  // }
 
   Future<void> _clearNotifications() async {
     final prefs = await SharedPreferences.getInstance();
