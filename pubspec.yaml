@@ -57,6 +57,12 @@ dependencies:
   intl: ^0.19.0
   uuid:
   google_ml_kit:
+  android_intent_plus:
+  device_info_plus:
+  hive:
+  hive_flutter:
+  hive_generator:
+  build_runner:   
 
 dev_dependencies:
   flutter_test:

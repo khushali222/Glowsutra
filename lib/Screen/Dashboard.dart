@@ -8,9 +8,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:hive/hive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
+import '../model/notification_model.dart';
 import 'Calander.dart';
 import 'Home_Remedies.dart';
 import 'Profile.dart';
@@ -30,6 +32,8 @@ class _DashboardState extends State<Dashboard> {
   List<String> _unreadNotifications = [];
   FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
+  late Box<NotificationModel> notificationBox;
+
   @override
   void initState() {
     super.initState();
@@ -169,46 +173,36 @@ class _DashboardState extends State<Dashboard> {
   final StreamController<void> _notificationStream =
       StreamController<void>.broadcast();
   Future<void> _loadUnreadNotifications() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    // Load both water and calendar notifications from SharedPreferences
-    final waterNotifications =
-        prefs.getStringList('water_notification_unreadNotifications') ?? [];
-    final calendarNotifications =
-        prefs.getStringList('calender_notification_unreadNotifications') ?? [];
-
-    // Combine both lists if needed (optional step depending on your needs)
-    final allNotifications = [...waterNotifications, ...calendarNotifications];
-
-    if (allNotifications.isEmpty) {
-      setState(() {
-        _unreadNotifications = [];
-      });
-      return;
+    // Check if the box is already open
+    if (!Hive.isBoxOpen('notifications')) {
+      // If not open, open the box with the correct type (NotificationModel)
+      notificationBox = await Hive.openBox<NotificationModel>('notifications');
+    } else {
+      // If already open, reuse the existing reference
+      notificationBox = Hive.box<NotificationModel>('notifications');
     }
 
-    final seen = <String>{};
-    final uniqueNotifications = <String>[];
+    // Retrieve the notifications from the box
+    List<NotificationModel> notifications = notificationBox.values.toList();
 
-    // Loop through all notifications and keep only unique ones
-    for (var item in allNotifications) {
-      final parsed = jsonDecode(item);
-      final uniqueKey = jsonEncode(parsed); // Compare entire notification
-      if (!seen.contains(uniqueKey)) {
-        seen.add(uniqueKey);
-        uniqueNotifications.add(item);
-      }
-    }
+    // Filter the unread notifications (assuming the 'isRead' field is added to NotificationModel)
+    List<String> unreadNotifications =
+        notifications
+            .where(
+              (notification) => !notification.isRead,
+            ) // Filter unread notifications
+            .map(
+              (notification) => notification.reminder,
+            ) // Map them to reminders or any other field
+            .toList();
 
-    // Save unique notifications back to SharedPreferences
-    await prefs.setStringList('unreadNotifications', uniqueNotifications);
-
-    // Update the state
+    // Update the state with the loaded notifications
     setState(() {
-      _unreadNotifications = uniqueNotifications;
+      _unreadNotifications = unreadNotifications;
     });
 
-   // print("Filtered notifications: $_unreadNotifications");
+    // Debugging: Print the number of unread notifications
+    print("🔔 Loaded ${_unreadNotifications.length} unread notifications");
   }
 
   @override
@@ -217,7 +211,7 @@ class _DashboardState extends State<Dashboard> {
     return StreamBuilder<void>(
       stream: _notificationStream.stream,
       builder: (context, snapshot) {
-        _loadUnreadNotifications();
+        //_loadUnreadNotifications();
         //  _loadReminders(); // Reload reminders whenever a new notification is received
         return Scaffold(
           drawer: Drawer(),
@@ -283,41 +277,18 @@ class _DashboardState extends State<Dashboard> {
               // ),
               GestureDetector(
                 onTap: () async {
-                  // Navigate to the NotificationScreen
-                  await Navigator.push(
+                  Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder:
-                          (context) => NotificationScreen(
-                            onClear: () async {
-                              setState(() {
-                                _unreadNotifications.clear();
-                              });
-
-                              final prefs =
-                                  await SharedPreferences.getInstance();
-                              // Clear both water and calendar notifications in SharedPreferences
-                              await prefs.setStringList(
-                                'water_notification_unreadNotifications',
-                                [],
-                              );
-                              await prefs.setStringList(
-                                'calender_notification_unreadNotifications',
-                                [],
-                              );
-                            },
-                          ),
+                      builder: (context) => NotificationScreen(),
                     ),
                   );
-                  // After returning, reload notifications to reflect changes
-                  _loadUnreadNotifications(); // Reload the unread notifications after coming back
-                  setState(() {}); // Refresh the main screen UI
                 },
                 child: Padding(
                   padding: const EdgeInsets.all(10),
                   child: Stack(
                     children: [
-                      FaIcon(
+                      const FaIcon(
                         FontAwesomeIcons.bell,
                         size: 20,
                         color: Colors.black,
@@ -343,7 +314,6 @@ class _DashboardState extends State<Dashboard> {
                   ),
                 ),
               ),
-
               GestureDetector(
                 onTap: () {
                   Navigator.push(

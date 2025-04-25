@@ -1,3 +1,7 @@
+import 'dart:io';
+
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -101,9 +105,49 @@ class _CalendarScreenState extends State<CalendarScreen> {
     await _notificationsPlugin.initialize(
       settings,
       onDidReceiveNotificationResponse: (response) {
-        _markNotificationAsRead(response.payload);
+        print("calling calender tap ");
+        _handleNotificationTap(response);
       },
     );
+  }
+
+  void _handleNotificationTap(NotificationResponse response) async {
+    // Get the payload (this can be a date or a unique identifier for the reminder)
+    String? payload = response.payload;
+
+    if (payload != null) {
+      // Decode the payload if it's in JSON format, or use it directly
+      DateTime notificationTime = DateTime.parse(payload);
+
+      final prefs = await SharedPreferences.getInstance();
+
+      // The storage key for unread notifications
+      String storageKey = 'calender_notification_unreadNotifications';
+
+      // Load the unread notifications from SharedPreferences
+      List<String> notificationsJson = prefs.getStringList(storageKey) ?? [];
+
+      // Remove the notification matching the payload
+      notificationsJson.removeWhere((notification) {
+        Map<String, dynamic> notificationMap = jsonDecode(notification);
+        DateTime notificationDateTime = DateTime.parse(
+          notificationMap["payload"],
+        );
+        return notificationDateTime == notificationTime;
+      });
+
+      // Save the updated notifications list back to SharedPreferences
+      await prefs.setStringList(storageKey, notificationsJson);
+
+      print("✅ Notification removed from unread notifications list.");
+
+      // Optionally, you can call setState to update the UI if necessary
+      if (mounted) {
+        setState(() {
+          _unreadNotifications = notificationsJson;
+        });
+      }
+    }
   }
 
   // Future<void> _scheduleNotification(
@@ -155,17 +199,32 @@ class _CalendarScreenState extends State<CalendarScreen> {
     String repeatType = "daily",
     bool isManual = false, // New flag to handle manual reminders
   }) async {
-    // Only check the water reminder toggle for preset reminders
+    // Step 1: Check for Exact Alarm permission on Android 12+
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      if (androidInfo.version.sdkInt >= 31) {
+        const intent = AndroidIntent(
+          action: 'android.settings.REQUEST_SCHEDULE_EXACT_ALARM',
+        );
+        await intent.launch();
+
+        print("Redirecting user to grant exact alarm permission.");
+        return; // Wait for user to manually grant before continuing
+      }
+    }
+
+    // Step 2: Check shared preferences if reminder is preset (not manual)
     if (!isManual) {
       final prefs = await SharedPreferences.getInstance();
       final String waterReminderStatus =
           prefs.getString('water_reminder_status') ?? 'on';
       if (waterReminderStatus == 'off') {
-        print("🔕 Water reminder is disabled, skipping custom reminder.");
+        print("Water reminder is disabled, skipping custom reminder.");
         return;
       }
     }
 
+    // Step 3: Build Notification
     final androidDetails = AndroidNotificationDetails(
       'reminder_channel',
       'Reminders',
@@ -176,6 +235,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final details = NotificationDetails(android: androidDetails);
     final id =
         (reminder.hashCode ^ scheduledTime.millisecondsSinceEpoch) & 0x7FFFFFFF;
+
+    // Step 4: Schedule Notification
     if (isRepeating) {
       await _notificationsPlugin.zonedSchedule(
         id,
@@ -198,9 +259,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
         reminder,
         tz.TZDateTime.from(scheduledTime, tz.local),
         details,
+        payload: scheduledTime.toString(),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       );
     }
+
     _saveNotificationWhenTimeArrives(
       reminder,
       scheduledTime,
@@ -240,7 +303,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       notificationsJson.add(jsonEncode(notificationMap));
       await prefs.setStringList(storageKey, notificationsJson);
 
-      print("✅ Saved notification to [$storageKey]: $notificationMap");
+      print("Saved notification to [$storageKey]: $notificationMap");
 
       if (mounted) setState(() {});
     });
