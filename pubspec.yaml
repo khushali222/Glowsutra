@@ -62,7 +62,10 @@ dependencies:
   hive:
   hive_flutter:
   hive_generator:
-  build_runner:   
+  build_runner:
+  firebase_core:
+  cloud_firestore:
+
 
 dev_dependencies:
   flutter_test:

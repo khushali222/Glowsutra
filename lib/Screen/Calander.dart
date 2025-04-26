@@ -1,7 +1,3 @@
-import 'dart:io';
-
-import 'package:android_intent_plus/android_intent.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -23,7 +19,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _selectedDate = DateTime.now();
   Map<DateTime, List<String>> _reminders = {};
   FlutterLocalNotificationsPlugin _notificationsPlugin =
-      FlutterLocalNotificationsPlugin();
+  FlutterLocalNotificationsPlugin();
   List<String> _unreadNotifications = [];
 
   // Map<String, bool> _presetReminders = {
@@ -53,14 +49,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Future<void> requestNotificationPermission() async {
     FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-        FlutterLocalNotificationsPlugin();
+    FlutterLocalNotificationsPlugin();
 
     final result =
-        await flutterLocalNotificationsPlugin
-            .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin
-            >()
-            ?.requestNotificationsPermission();
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin
+    >()
+        ?.requestNotificationsPermission();
 
     if (result != null && result) {
       print("✅ Notification Permission Granted!");
@@ -96,7 +92,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Future<void> _initializeNotifications() async {
     const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    AndroidInitializationSettings('@mipmap/ic_launcher');
 
     final InitializationSettings settings = InitializationSettings(
       android: androidSettings,
@@ -105,49 +101,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     await _notificationsPlugin.initialize(
       settings,
       onDidReceiveNotificationResponse: (response) {
-        print("calling calender tap ");
-        _handleNotificationTap(response);
+        _markNotificationAsRead(response.payload);
       },
     );
-  }
-
-  void _handleNotificationTap(NotificationResponse response) async {
-    // Get the payload (this can be a date or a unique identifier for the reminder)
-    String? payload = response.payload;
-
-    if (payload != null) {
-      // Decode the payload if it's in JSON format, or use it directly
-      DateTime notificationTime = DateTime.parse(payload);
-
-      final prefs = await SharedPreferences.getInstance();
-
-      // The storage key for unread notifications
-      String storageKey = 'calender_notification_unreadNotifications';
-
-      // Load the unread notifications from SharedPreferences
-      List<String> notificationsJson = prefs.getStringList(storageKey) ?? [];
-
-      // Remove the notification matching the payload
-      notificationsJson.removeWhere((notification) {
-        Map<String, dynamic> notificationMap = jsonDecode(notification);
-        DateTime notificationDateTime = DateTime.parse(
-          notificationMap["payload"],
-        );
-        return notificationDateTime == notificationTime;
-      });
-
-      // Save the updated notifications list back to SharedPreferences
-      await prefs.setStringList(storageKey, notificationsJson);
-
-      print("✅ Notification removed from unread notifications list.");
-
-      // Optionally, you can call setState to update the UI if necessary
-      if (mounted) {
-        setState(() {
-          _unreadNotifications = notificationsJson;
-        });
-      }
-    }
   }
 
   // Future<void> _scheduleNotification(
@@ -193,38 +149,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
   //   _saveNotificationWhenTimeArrives(reminder, scheduledTime);
   // }
   Future<void> _scheduleNotification(
-    String reminder,
-    DateTime scheduledTime, {
-    bool isRepeating = false,
-    String repeatType = "daily",
-    bool isManual = false, // New flag to handle manual reminders
-  }) async {
-    // Step 1: Check for Exact Alarm permission on Android 12+
-    if (Platform.isAndroid) {
-      final androidInfo = await DeviceInfoPlugin().androidInfo;
-      if (androidInfo.version.sdkInt >= 31) {
-        const intent = AndroidIntent(
-          action: 'android.settings.REQUEST_SCHEDULE_EXACT_ALARM',
-        );
-        await intent.launch();
-
-        print("Redirecting user to grant exact alarm permission.");
-        return; // Wait for user to manually grant before continuing
-      }
-    }
-
-    // Step 2: Check shared preferences if reminder is preset (not manual)
+      String reminder,
+      DateTime scheduledTime, {
+        bool isRepeating = false,
+        String repeatType = "daily",
+        bool isManual = false, // New flag to handle manual reminders
+      }) async {
+    // Only check the water reminder toggle for preset reminders
     if (!isManual) {
       final prefs = await SharedPreferences.getInstance();
       final String waterReminderStatus =
           prefs.getString('water_reminder_status') ?? 'on';
       if (waterReminderStatus == 'off') {
-        print("Water reminder is disabled, skipping custom reminder.");
+        print("🔕 Water reminder is disabled, skipping custom reminder.");
         return;
       }
     }
 
-    // Step 3: Build Notification
     final androidDetails = AndroidNotificationDetails(
       'reminder_channel',
       'Reminders',
@@ -234,9 +175,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     final details = NotificationDetails(android: androidDetails);
     final id =
-        (reminder.hashCode ^ scheduledTime.millisecondsSinceEpoch) & 0x7FFFFFFF;
-
-    // Step 4: Schedule Notification
+    (reminder.hashCode ^ scheduledTime.millisecondsSinceEpoch) & 0x7FFFFFFF;
     if (isRepeating) {
       await _notificationsPlugin.zonedSchedule(
         id,
@@ -246,11 +185,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
         details,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         matchDateTimeComponents:
-            repeatType == "daily"
-                ? DateTimeComponents.time
-                : (repeatType == "weekly"
-                    ? DateTimeComponents.dayOfWeekAndTime
-                    : DateTimeComponents.dayOfMonthAndTime),
+        repeatType == "daily"
+            ? DateTimeComponents.time
+            : (repeatType == "weekly"
+            ? DateTimeComponents.dayOfWeekAndTime
+            : DateTimeComponents.dayOfMonthAndTime),
       );
     } else {
       await _notificationsPlugin.zonedSchedule(
@@ -259,11 +198,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
         reminder,
         tz.TZDateTime.from(scheduledTime, tz.local),
         details,
-        payload: scheduledTime.toString(),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       );
     }
-
     _saveNotificationWhenTimeArrives(
       reminder,
       scheduledTime,
@@ -272,10 +209,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   void _saveNotificationWhenTimeArrives(
-    String reminder,
-    DateTime scheduledTime,
-    String screenKey, // 👈 Add this parameter to distinguish screens
-  ) {
+      String reminder,
+      DateTime scheduledTime,
+      String screenKey, // 👈 Add this parameter to distinguish screens
+      ) {
     Duration delay = scheduledTime.difference(DateTime.now());
     if (delay.isNegative) return;
 
@@ -303,7 +240,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       notificationsJson.add(jsonEncode(notificationMap));
       await prefs.setStringList(storageKey, notificationsJson);
 
-      print("Saved notification to [$storageKey]: $notificationMap");
+      print("✅ Saved notification to [$storageKey]: $notificationMap");
 
       if (mounted) setState(() {});
     });
@@ -390,33 +327,33 @@ class _CalendarScreenState extends State<CalendarScreen> {
         context: context,
         builder:
             (context) => AlertDialog(
-              title: Text("Add Reminder"),
-              content: TextField(
-                controller: reminderController,
-                decoration: InputDecoration(hintText: "Enter reminder"),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    if (reminderController.text.isNotEmpty) {
-                      setState(() {
-                        _reminders[_selectedDate] ??= [];
-                        _reminders[_selectedDate]!.add(reminderController.text);
-                      });
+          title: Text("Add Reminder"),
+          content: TextField(
+            controller: reminderController,
+            decoration: InputDecoration(hintText: "Enter reminder"),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                if (reminderController.text.isNotEmpty) {
+                  setState(() {
+                    _reminders[_selectedDate] ??= [];
+                    _reminders[_selectedDate]!.add(reminderController.text);
+                  });
 
-                      _scheduleNotification(
-                        reminderController.text,
-                        scheduledDateTime,
-                      );
-                      _saveReminders(); // ✅ Save immediately to prevent data loss
+                  _scheduleNotification(
+                    reminderController.text,
+                    scheduledDateTime,
+                  );
+                  _saveReminders(); // ✅ Save immediately to prevent data loss
 
-                      Navigator.pop(context);
-                    }
-                  },
-                  child: Text("Save"),
-                ),
-              ],
+                  Navigator.pop(context);
+                }
+              },
+              child: Text("Save"),
             ),
+          ],
+        ),
       );
     }
   }
@@ -424,7 +361,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Future<void> _saveReminders() async {
     final prefs = await SharedPreferences.getInstance();
     Map<String, List<String>> formattedReminders = _reminders.map(
-      (key, value) => MapEntry(key.toIso8601String(), value),
+          (key, value) => MapEntry(key.toIso8601String(), value),
     );
     await prefs.setString('reminders', jsonEncode(formattedReminders));
   }
@@ -568,78 +505,78 @@ class _CalendarScreenState extends State<CalendarScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 1),
               child: Column(
                 children:
-                    _presetReminders.keys.map((reminder) {
-                      return Card(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            10,
-                          ), // Rounded corners
-                        ),
-                        elevation: 3,
-                        margin: EdgeInsets.symmetric(vertical: 8),
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 5,
-                            vertical: 5,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.only(left: 5),
-                                child: Text(
-                                  reminder,
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
+                _presetReminders.keys.map((reminder) {
+                  return Card(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        10,
+                      ), // Rounded corners
+                    ),
+                    elevation: 3,
+                    margin: EdgeInsets.symmetric(vertical: 8),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 5,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(left: 5),
+                            child: Text(
+                              reminder,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
                               ),
-                              Container(
-                                padding: EdgeInsets.symmetric(horizontal: 12),
-                                decoration: BoxDecoration(
-                                  color: Colors.deepPurple.shade100,
-                                  borderRadius: BorderRadius.circular(
-                                    12,
-                                  ), // Smooth rounded dropdown
-                                ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    value: _presetReminders[reminder],
-                                    items:
-                                        ["off", "daily", "weekly", "monthly"]
-                                            .map(
-                                              (type) => DropdownMenuItem(
-                                                value: type,
-                                                child: Text(
-                                                  type,
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-                                              ),
-                                            )
-                                            .toList(),
-                                    onChanged: (newValue) {
-                                      if (newValue != null) {
-                                        _togglePresetReminder(
-                                          reminder,
-                                          newValue,
-                                        );
-                                      }
-                                    },
-                                    icon: Icon(
-                                      Icons.arrow_drop_down,
-                                      color: Colors.deepPurple,
+                            ),
+                          ),
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.deepPurple.shade100,
+                              borderRadius: BorderRadius.circular(
+                                12,
+                              ), // Smooth rounded dropdown
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _presetReminders[reminder],
+                                items:
+                                ["off", "daily", "weekly", "monthly"]
+                                    .map(
+                                      (type) => DropdownMenuItem(
+                                    value: type,
+                                    child: Text(
+                                      type,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                      ),
                                     ),
                                   ),
+                                )
+                                    .toList(),
+                                onChanged: (newValue) {
+                                  if (newValue != null) {
+                                    _togglePresetReminder(
+                                      reminder,
+                                      newValue,
+                                    );
+                                  }
+                                },
+                                icon: Icon(
+                                  Icons.arrow_drop_down,
+                                  color: Colors.deepPurple,
                                 ),
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      );
-                    }).toList(),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
             SizedBox(height: 2),
@@ -658,35 +595,35 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 padding: const EdgeInsets.only(left: 15, right: 15),
                 child: Column(
                   children:
-                      todaysReminders.map((entry) {
-                        DateTime reminderDate = entry.key;
-                        String reminderText = entry.value;
+                  todaysReminders.map((entry) {
+                    DateTime reminderDate = entry.key;
+                    String reminderText = entry.value;
 
-                        return Card(
-                          elevation: 4,
-                          margin: EdgeInsets.symmetric(vertical: 4),
-                          child: ListTile(
-                            leading: FaIcon(
-                              FontAwesomeIcons.stopwatch,
-                              size: 20,
-                              color: Colors.deepPurple,
-                            ),
-                            title: Text(reminderText),
-                            trailing: IconButton(
-                              icon: FaIcon(
-                                FontAwesomeIcons.trashCan,
-                                size: 18,
-                                color: Colors.red,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  _removeReminder(reminderDate, reminderText);
-                                });
-                              },
-                            ),
+                    return Card(
+                      elevation: 4,
+                      margin: EdgeInsets.symmetric(vertical: 4),
+                      child: ListTile(
+                        leading: FaIcon(
+                          FontAwesomeIcons.stopwatch,
+                          size: 20,
+                          color: Colors.deepPurple,
+                        ),
+                        title: Text(reminderText),
+                        trailing: IconButton(
+                          icon: FaIcon(
+                            FontAwesomeIcons.trashCan,
+                            size: 18,
+                            color: Colors.red,
                           ),
-                        );
-                      }).toList(),
+                          onPressed: () {
+                            setState(() {
+                              _removeReminder(reminderDate, reminderText);
+                            });
+                          },
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
             SizedBox(height: 60),

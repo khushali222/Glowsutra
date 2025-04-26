@@ -1,136 +1,140 @@
 import 'dart:convert';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
-import '../model/notification_model.dart';
-
 @pragma('vm:entry-point')
-void handleBackgroundNotification(NotificationResponse response) async {
-  try {
-    final boxName = 'notifications';
+Future<void> notificationTapBackground(
+  NotificationResponse notificationResponse,
+) async {
+  await Firebase.initializeApp();
+  final String? actionId = notificationResponse.actionId;
+  final String? payload = notificationResponse.payload;
 
-    // Check if the box is already open before opening it
-    if (!Hive.isBoxOpen(boxName)) {
-      await Hive.openBox(boxName);
+  print("Background notification action tapped!");
+  print("Action ID: $actionId");
+  print("Payload: $payload");
+  final prefs = await SharedPreferences.getInstance();
+  // Add logic based on the action ID
+  if (actionId == 'ok_action') {
+    try {
+      // Fetch current glass count from Firestore
+      DocumentSnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore.instance
+          .collection("User")
+          .doc("waterGlasess")
+          .get();
+
+      int currentGlasses = 0;
+      if (snapshot.exists && snapshot.data() != null && snapshot.data()!['Name'] != null) {
+        currentGlasses = snapshot.data()!['Name'] as int;
+      }
+
+      currentGlasses += 1;
+
+      // Optional: limit to maximum 25 glasses
+      if (currentGlasses > 25) {
+        currentGlasses = 25;
+      }
+
+      // Update in Firestore
+       FirebaseFirestore.instance
+          .collection("User")
+          .doc("waterGlasess")
+          .set({"Name": currentGlasses});
+
+      // Also update SharedPreferences (optional)
+      prefs.setInt('water_glasses', currentGlasses);
+      await prefs.reload();
+
+      print("currentGlasses  $currentGlasses");
+    } catch (e) {
+      print("Error updating water glasses: $e");
     }
 
-    String screenKey = "default";
-    String storageKey = '${screenKey}_unreadNotifications';
-    List<String> notificationsJson = Hive.box(boxName).get(storageKey) ?? [];
-
-    DateTime now = DateTime.now();
-    String formattedTime =
-        "${now.hour % 12 == 0 ? 12 : now.hour % 12}:${now.minute.toString().padLeft(2, '0')} ${now.hour >= 12 ? "PM" : "AM"}";
-    String formattedDate = DateFormat('yyyy-MM-dd').format(now);
-
-    Map<String, String> notificationMap = {
-      "reminder": response.payload ?? 'Unknown Reminder',
-      "time": formattedTime,
-      "date": formattedDate,
-      "payload": response.payload ?? '',
-      "source": screenKey,
-      "id": response.id?.toString() ?? '0',
-    };
-
-    bool? scheduleEnable = await Hive.box(
-      boxName,
-    ).get('alreadyScheduled', defaultValue: false);
-    if (scheduleEnable == true) {
-      notificationsJson.add(jsonEncode(notificationMap));
-      await Hive.box(boxName).put(storageKey, notificationsJson);
-      print(
-        "🟢 Saved background notification to [$storageKey]: $notificationMap",
-      );
-    }
-  } catch (e) {
-    print("Error in background notification handler: $e");
+  } else if (actionId == 'cancel_action') {
+    print("User tapped Cancel action");
+    // Handle Cancel action (e.g., dismiss reminder)
+  } else {
+    print("User tapped the notification body.");
   }
 }
 
-class WaterIntakeScreen extends StatefulWidget {
+class WaterIntakeScreen extends StatefulWidget  {
   @override
   _WaterIntakeScreenState createState() => _WaterIntakeScreenState();
 }
 
-class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
+class _WaterIntakeScreenState extends State<WaterIntakeScreen> with WidgetsBindingObserver {
   int totalGlasses = 0;
   final int targetGlasses = 8; // 1 glass = 250ml, 8 glasses = 2000ml
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
       FlutterLocalNotificationsPlugin();
-  late Box<NotificationModel> notificationsBox;
+
   bool notificationsEnabled = false;
   String selectedReminder = "None"; // Default: No reminders
-  final _notification = Hive.box("notificationBox");
+
   @override
   void initState() {
     super.initState();
     tz.initializeTimeZones();
     _initNotifications();
     _loadWaterIntake();
+    WidgetsBinding.instance.addObserver(this);
     _loadNotificationPreferences();
-    checkIfLaunchedFromNotification();
-    _openNotificationsBox();
-  }
-
-  Future<void> _openNotificationsBox() async {
-    const boxName = 'notifications';
-
-    // Ensure box is only opened once and not multiple times
-    if (!Hive.isBoxOpen(boxName)) {
-      notificationsBox = await Hive.openBox<NotificationModel>(boxName);
-    } else {
-      notificationsBox = Hive.box<NotificationModel>(boxName);
-    }
-  }
-
-  Future<void> checkIfLaunchedFromNotification() async {
-    final NotificationAppLaunchDetails? details =
-        await flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
-
-    if (details?.didNotificationLaunchApp ?? false) {
-      print(
-        "App launched by notification with payload: ${details!.notificationResponse?.payload}",
-      );
-      onTapNotification(details.notificationResponse!.payload!);
-    }
   }
 
   Future<void> _loadWaterIntake() async {
-    final settingsBox = Hive.box('settings');
-    setState(() {
-      totalGlasses = settingsBox.get('water_glasses', defaultValue: 0);
-    });
-  }
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    try {
+      // Fetch current glass count from Firestore
+      DocumentSnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore.instance
+          .collection("User")
+          .doc("waterGlasess")
+          .get();
 
-  void writeDat() {
-    _notification.put(1, "khushi");
-    print(_notification.get(1));
+      int currentGlasses = 0;
+      if (snapshot.exists && snapshot.data() != null && snapshot.data()!['Name'] != null) {
+        currentGlasses = snapshot.data()!['Name'] as int;
+      }
+      setState(() {
+        totalGlasses = currentGlasses;
+        print(totalGlasses);
+      });
+
+      // Update in Firestore
+
+    } catch (e) {
+      print("Error updating water glasses: $e");
+    }
+
   }
 
   Future<void> _saveWaterIntake() async {
-    final settingsBox = Hive.box('settings');
-    await settingsBox.put('water_glasses', totalGlasses);
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('water_glasses', totalGlasses);
   }
 
   Future<void> _loadNotificationPreferences() async {
-    final settingsBox = Hive.box('settings');
+    SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      notificationsEnabled = settingsBox.get(
-        'notifications_enabled',
-        defaultValue: false,
-      );
-      selectedReminder = settingsBox.get('reminder_type', defaultValue: 'None');
+      notificationsEnabled = prefs.getBool('notifications_enabled') ?? false;
+      selectedReminder = prefs.getString('reminder_type') ?? "None";
     });
   }
 
   Future<void> _saveNotificationPreferences() async {
-    final settingsBox = Hive.box('settings');
-    await settingsBox.put('notifications_enabled', notificationsEnabled);
-    await settingsBox.put('reminder_type', selectedReminder);
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(
+      'notifications_enabled',
+      notificationsEnabled,
+    ); // ✅ use the right key!
+    await prefs.setString('reminder_type', selectedReminder);
   }
 
   Future<void> _initNotifications() async {
@@ -142,8 +146,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
 
     await flutterLocalNotificationsPlugin.initialize(
       initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        print("clliing 1");
+      onDidReceiveNotificationResponse: (NotificationResponse response) async {
         final String? actionId = response.actionId;
         print("data ${response.data}");
         print("payload ${response.payload}");
@@ -152,93 +155,108 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
         if (response.notificationResponseType ==
             NotificationResponseType.selectedNotification) {
           print("input ${response.notificationResponseType}");
-          // onTapNotification(response.payload!);
-          _saveNotificationToHive(response);
+          onTapNotification(response.payload!);
         }
+        final prefs = await SharedPreferences.getInstance();
         if (actionId == 'ok_action') {
           // 🔔 User tapped OK
           print("✅ User acknowledged water reminder.");
+          // 👉 Optional: update intake counter, store time, etc.
+          // Increase glass count by 1
+          int currentGlasses = prefs.getInt('water_glasses') ?? 0;
+          currentGlasses += 1;
+          // Optional: limit to target 8 glasses
+          if (currentGlasses > 8) {
+            currentGlasses = 8;
+          }
+        //  await prefs.setInt('water_glasses', currentGlasses);
         } else if (actionId == 'cancel_action') {
           // ❌ User tapped Cancel
           print("❌ User dismissed water reminder.");
+          // 👉 Optional: log skipped time, or take no action
         } else {
           // 📱 User tapped the notification body
           print("📩 Notification tapped (not a button).");
         }
       },
-      // onDidReceiveBackgroundNotificationResponse: handleBackgroundNotification,
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
   }
 
   void onTapNotification(String payload) async {
-    final box = await Hive.openBox('settings');
-    List<String> notificationsJson = List<String>.from(
-      box.get('water_notification_unreadNotifications', defaultValue: []),
-    );
+    final prefs = await SharedPreferences.getInstance();
 
-    for (int i = 0; i < notificationsJson.length; i++) {
-      Map<String, dynamic> notificationMap = jsonDecode(notificationsJson[i]);
+    List<String> notificationsJson =
+        prefs.getStringList('unreadNotifications') ?? [];
 
-      if (notificationMap["payload"] == payload) {
-        String id = notificationMap["id"];
+    List<Map<String, dynamic>> notifications =
+        notificationsJson
+            .map((item) => jsonDecode(item) as Map<String, dynamic>)
+            .toList();
 
-        notificationsJson.removeAt(i);
+    DateTime payloadTime = DateTime.parse(payload);
+    print("update notific before $notifications");
+    // Remove the notification with the corresponding payload time
+    notifications.removeWhere((notification) {
+      String? storedPayload = notification['payload'];
+      if (storedPayload == null) return false;
+      DateTime storedTime = DateTime.parse(storedPayload);
+      return storedTime.isAtSameMomentAs(payloadTime);
+    });
+    print("update notific $notifications");
+    // Save the updated notifications list back to SharedPreferences
+    List<String> updatedJson =
+        notifications.map((notification) => jsonEncode(notification)).toList();
 
-        await box.put(
-          'water_notification_unreadNotifications',
-          notificationsJson,
-        );
+    await prefs.setStringList('unreadNotifications', updatedJson);
 
-        await flutterLocalNotificationsPlugin.cancel(int.parse(id));
-
-        print("Notification with ID $id has been removed and canceled.");
-        break;
-      }
-    }
-
+    // Only update the state if the widget is still mounted
     if (mounted) {
-      setState(() {});
+      setState(() {
+        // Update the UI state, if needed, or just refresh the list
+      });
     }
+
+    print("Removed notification with payload time: $payload");
   }
 
   void _toggleNotifications(bool value) async {
-    final boxName = 'notifications';
-    var notificationBox = Hive.box<NotificationModel>(boxName);
-    var generalBox = await Hive.openBox('generalData');
-    await generalBox.put('notificationsEnabled', value);
+    final prefs = await SharedPreferences.getInstance();
     List<String> waterList =
-        (generalBox.get('saved_notification_ids', defaultValue: [])
-                as List<dynamic>)
-            .map((e) => e.toString())
-            .toList();
+        prefs.getStringList('saved_notification_ids') ?? [];
+    print("water list $waterList");
 
     setState(() {
       notificationsEnabled = value;
     });
 
+    prefs.setBool('notificationsEnabled', notificationsEnabled);
+
     if (notificationsEnabled && selectedReminder != "None") {
-      bool alreadyScheduled = generalBox.get(
-        'alreadyScheduled',
-        defaultValue: false,
-      );
+      bool alreadyScheduled = prefs.getBool('alreadyScheduled') ?? false;
       if (!alreadyScheduled) {
+        // Optional: cancel previously saved notifications first
         for (String id in waterList) {
           await flutterLocalNotificationsPlugin.cancel(int.parse(id));
         }
+
         _scheduleNotifications(_getDaysFromReminder(selectedReminder));
-        await generalBox.put('alreadyScheduled', true);
+        prefs.setBool('alreadyScheduled', true);
       }
     } else {
-      await generalBox.put('alreadyScheduled', false);
+      // Disable notifications
+      prefs.setBool('alreadyScheduled', false);
 
       if (waterList.isNotEmpty) {
         for (String id in waterList) {
           await flutterLocalNotificationsPlugin.cancel(int.parse(id));
         }
 
-        await generalBox.delete('saved_notification_ids');
+        // Optionally clear the saved IDs
+        await prefs.remove('saved_notification_ids');
       }
 
+      // ✅ Safely show snackbar only if widget is still mounted
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -262,20 +280,10 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
     }
   }
 
-  void _scheduleNotifications(int days) async {
-    final List<int> reminderHours = [
-      10,
-      11,
-      12,
-      14,
-      15,
-      16,
-      17,
-      18,
-      19,
-      21,
-      22,
-    ];
+  void _scheduleNotifications(int days) {
+    // flutterLocalNotificationsPlugin.cancelAll();
+
+    final List<int> reminderHours = [11, 13, 14, 15, 16, 17, 18, 19, 21, 22];
     final List<int> reminderMinutes = [
       1,
       2,
@@ -337,7 +345,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
       58,
       59,
       60,
-    ];
+    ]; // You can change this to [0, 30] or others for more
 
     for (int day = 0; day < days; day++) {
       for (int hour in reminderHours) {
@@ -353,7 +361,6 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
     int hour,
     int minute,
   ) async {
-    final box = Hive.box('settings');
     final now = DateTime.now();
     DateTime scheduledTime = DateTime(
       now.year,
@@ -366,78 +373,152 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
     if (scheduledTime.isBefore(now)) {
       scheduledTime = scheduledTime.add(Duration(days: 1));
     }
-
-    int totalGlasses = box.get('water_glasses', defaultValue: 0);
+    // Getting the water intake value from SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    int totalGlasses = prefs.getInt('water_glasses') ?? 0;
     final String message = "Drink water! Current intake: $totalGlasses glasses";
-
     final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
           'water_reminder_channel',
           'Water Reminder',
           importance: Importance.high,
           priority: Priority.high,
+          actions: [
+            AndroidNotificationAction(
+              'ok_action', // action ID
+              'OK', // label shown to user
+            ),
+            AndroidNotificationAction('cancel_action', 'Cancel'),
+          ],
         );
 
     final NotificationDetails notificationDetails = NotificationDetails(
       android: androidDetails,
     );
-
     int id = dayOffset * 10000 + hour * 100 + minute;
-
-    List<String> existingIds = List<String>.from(
-      box.get('saved_notification_ids', defaultValue: []),
-    );
-
+    List<String> existingIds =
+        prefs.getStringList('saved_notification_ids') ?? [];
     if (!existingIds.contains(id.toString())) {
       existingIds.add(id.toString());
-      await box.put('saved_notification_ids', existingIds);
+      await prefs.setStringList('saved_notification_ids', existingIds);
     }
-
     await flutterLocalNotificationsPlugin.zonedSchedule(
-      id,
-      'Hydration Reminder',
+      id, //for only one day
+      // hour + dayOffset * 24, //for only one day
+      'Time to drink water!',
       message,
       tz.TZDateTime.from(scheduledTime, tz.local),
       notificationDetails,
+      payload: scheduledTime.toString(),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    );
+    print("calling abc");
+    //_saveWaterIntakeNotification(message);
+    _saveNotificationWhenTimeArrives(
+      message,
+      scheduledTime,
+      "water_notification",
+      id.toString(),
     );
   }
 
-  Future<void> _saveNotificationToHive(NotificationResponse response) async {
-    try {
-      final boxName = 'notifications';
-      String screenKey = "default";
-      String storageKey = '${screenKey}_unreadNotifications';
-      List<String> notificationsJson = Hive.box(boxName).get(storageKey) ?? [];
+  void _saveNotificationWhenTimeArrives(
+    String reminder,
+    DateTime scheduledTime,
+    String screenKey,
+    String id,
+  ) {
+    Duration delay = scheduledTime.difference(DateTime.now());
+    if (delay.isNegative) return;
 
-      DateTime now = DateTime.now();
+    Future.delayed(delay, () async {
+      final prefs = await SharedPreferences.getInstance();
+      bool? scheduleEnable = prefs.getBool('alreadyScheduled');
+
+      // Use dynamic key based on the screen
+      String storageKey = '${screenKey}_unreadNotifications';
+
+      List<String> notificationsJson = prefs.getStringList(storageKey) ?? [];
+
       String formattedTime =
-          "${now.hour % 12 == 0 ? 12 : now.hour % 12}:${now.minute.toString().padLeft(2, '0')} ${now.hour >= 12 ? "PM" : "AM"}";
-      String formattedDate = DateFormat('yyyy-MM-dd').format(now);
+          "${scheduledTime.hour % 12 == 0 ? 12 : scheduledTime.hour % 12}:${scheduledTime.minute.toString().padLeft(2, '0')} ${scheduledTime.hour >= 12 ? "PM" : "AM"}";
+      String formattedDate = DateFormat('yyyy-MM-dd').format(scheduledTime);
 
       Map<String, String> notificationMap = {
-        "reminder": response.payload ?? 'Unknown Reminder',
+        "reminder": reminder,
         "time": formattedTime,
         "date": formattedDate,
-        "payload": response.payload ?? '',
+        "payload": scheduledTime.toString(),
         "source": screenKey,
-        "id": response.id?.toString() ?? '0',
+        "id": id,
       };
 
-      notificationsJson.add(jsonEncode(notificationMap));
-      await Hive.box(
-        boxName,
-      ).put(storageKey, notificationsJson); // Save it in the box
+      if (scheduleEnable == true) {
+        notificationsJson.add(jsonEncode(notificationMap));
+        await prefs.setStringList(storageKey, notificationsJson);
 
-      print("Saved foreground notification to [$storageKey]: $notificationMap");
-    } catch (e) {
-      print("Error saving foreground notification: $e");
+        print("✅ Saved notification to [$storageKey]: $notificationMap");
+      }
+
+      if (mounted) setState(() {});
+    });
+  }
+
+  Future<void> _saveWaterIntakeNotification(String message) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final value = prefs.get('unreadNotifications');
+
+    List<String> notifications = [];
+    if (value is List<String>) {
+      notifications = value;
+    }
+
+    notifications.add(message);
+    await prefs.setStringList('unreadNotifications', notifications);
+  }
+
+  void _addWater(int glasses) {
+    setState(() {
+      totalGlasses += glasses;
+      if (totalGlasses > targetGlasses) {
+        totalGlasses = targetGlasses;
+      }
+    });
+    _saveWaterIntake();
+  }
+
+  void _removeWater(int glasses) {
+    setState(() {
+      totalGlasses -= glasses;
+      if (totalGlasses < 0) {
+        totalGlasses = 0;
+      }
+    });
+    _saveWaterIntake();
+  }
+
+  void _resetWaterIntake() {
+    setState(() {
+      totalGlasses = 0;
+    });
+    _saveWaterIntake();
+  }
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadWaterIntake(); // Reload when app comes to foreground
     }
   }
 
   @override
   Widget build(BuildContext context) {
     double progress = totalGlasses / targetGlasses;
+
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -498,73 +579,71 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> {
               SizedBox(height: 24),
 
               // Inline Action Buttons
-              // Row(
-              //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              //   children: [
-              //     ElevatedButton.icon(
-              //       onPressed: () => _addWater(1),
-              //       icon: Icon(Icons.add),
-              //       label: Text("Add"),
-              //       style: ElevatedButton.styleFrom(
-              //         backgroundColor: Colors.deepPurple[300],
-              //         foregroundColor: Colors.white,
-              //         shape: RoundedRectangleBorder(
-              //           borderRadius: BorderRadius.circular(12),
-              //         ),
-              //         padding: EdgeInsets.symmetric(
-              //           horizontal: 20,
-              //           vertical: 12,
-              //         ),
-              //       ),
-              //     ),
-              //     ElevatedButton.icon(
-              //       onPressed: () => _removeWater(1),
-              //       icon: Icon(Icons.remove),
-              //       label: Text("Remove"),
-              //       style: ElevatedButton.styleFrom(
-              //         backgroundColor: Colors.deepPurple[100],
-              //         foregroundColor: Colors.deepPurple[800],
-              //         shape: RoundedRectangleBorder(
-              //           borderRadius: BorderRadius.circular(12),
-              //         ),
-              //         padding: EdgeInsets.symmetric(
-              //           horizontal: 20,
-              //           vertical: 12,
-              //         ),
-              //       ),
-              //     ),
-              //     OutlinedButton(
-              //       onPressed: _resetWaterIntake,
-              //       child: Text("Reset"),
-              //       style: OutlinedButton.styleFrom(
-              //         foregroundColor: Colors.deepPurple,
-              //         side: BorderSide(color: Colors.deepPurple.shade300),
-              //         shape: RoundedRectangleBorder(
-              //           borderRadius: BorderRadius.circular(10),
-              //         ),
-              //         padding: EdgeInsets.symmetric(
-              //           horizontal: 20,
-              //           vertical: 12,
-              //         ),
-              //       ),
-              //     ),
-              //   ],
-              // ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () => _addWater(1),
+                    icon: Icon(Icons.add),
+                    label: Text("Add"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple[300],
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () => _removeWater(1),
+                    icon: Icon(Icons.remove),
+                    label: Text("Remove"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple[100],
+                      foregroundColor: Colors.deepPurple[800],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                  OutlinedButton(
+                    onPressed: _resetWaterIntake,
+                    child: Text("Reset"),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.deepPurple,
+                      side: BorderSide(color: Colors.deepPurple.shade300),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
               SizedBox(height: 30),
               Divider(color: Colors.deepPurple[100]),
               SizedBox(height: 8),
               // Reminder Section
               Row(
                 children: [
-                  GestureDetector(
-                    onTap: writeDat,
-                    child: Text(
-                      "Reminders",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.deepPurple[900],
-                      ),
+                  Text(
+                    "Reminders",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.deepPurple[900],
                     ),
                   ),
                 ],
