@@ -25,29 +25,30 @@ Future<void> notificationTapBackground(
   if (actionId == 'ok_action') {
     try {
       // Fetch current glass count from Firestore
-      DocumentSnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore.instance
-          .collection("User")
-          .doc("waterGlasess")
-          .get();
+      DocumentSnapshot<Map<String, dynamic>> snapshot =
+          await FirebaseFirestore.instance
+              .collection("User")
+              .doc("waterGlasess")
+              .get();
 
       int currentGlasses = 0;
-      if (snapshot.exists && snapshot.data() != null && snapshot.data()!['Name'] != null) {
+      if (snapshot.exists &&
+          snapshot.data() != null &&
+          snapshot.data()!['Name'] != null) {
         currentGlasses = snapshot.data()!['Name'] as int;
       }
 
       currentGlasses += 1;
 
       // Optional: limit to maximum 25 glasses
-      if (currentGlasses > 25) {
-        currentGlasses = 25;
+      if (currentGlasses > 8) {
+        currentGlasses = 8;
       }
 
       // Update in Firestore
-       FirebaseFirestore.instance
-          .collection("User")
-          .doc("waterGlasess")
-          .set({"Name": currentGlasses});
-
+      FirebaseFirestore.instance.collection("User").doc("waterGlasess").set({
+        "Name": currentGlasses,
+      });
       // Also update SharedPreferences (optional)
       prefs.setInt('water_glasses', currentGlasses);
       await prefs.reload();
@@ -56,7 +57,6 @@ Future<void> notificationTapBackground(
     } catch (e) {
       print("Error updating water glasses: $e");
     }
-
   } else if (actionId == 'cancel_action') {
     print("User tapped Cancel action");
     // Handle Cancel action (e.g., dismiss reminder)
@@ -65,12 +65,13 @@ Future<void> notificationTapBackground(
   }
 }
 
-class WaterIntakeScreen extends StatefulWidget  {
+class WaterIntakeScreen extends StatefulWidget {
   @override
   _WaterIntakeScreenState createState() => _WaterIntakeScreenState();
 }
 
-class _WaterIntakeScreenState extends State<WaterIntakeScreen> with WidgetsBindingObserver {
+class _WaterIntakeScreenState extends State<WaterIntakeScreen>
+    with WidgetsBindingObserver {
   int totalGlasses = 0;
   final int targetGlasses = 8; // 1 glass = 250ml, 8 glasses = 2000ml
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -93,13 +94,16 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> with WidgetsBindi
     SharedPreferences prefs = await SharedPreferences.getInstance();
     try {
       // Fetch current glass count from Firestore
-      DocumentSnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore.instance
-          .collection("User")
-          .doc("waterGlasess")
-          .get();
+      DocumentSnapshot<Map<String, dynamic>> snapshot =
+          await FirebaseFirestore.instance
+              .collection("User")
+              .doc("waterGlasess")
+              .get();
 
       int currentGlasses = 0;
-      if (snapshot.exists && snapshot.data() != null && snapshot.data()!['Name'] != null) {
+      if (snapshot.exists &&
+          snapshot.data() != null &&
+          snapshot.data()!['Name'] != null) {
         currentGlasses = snapshot.data()!['Name'] as int;
       }
       setState(() {
@@ -108,15 +112,28 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> with WidgetsBindi
       });
 
       // Update in Firestore
+    } catch (e) {
+      print("Error updating water glasses: $e");
+    }
+  }
 
+  Future<void> _saveWaterIntake() async {
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      // Update in Firestore
+      FirebaseFirestore.instance.collection("User").doc("waterGlasess").set({
+        "Name": totalGlasses,
+      });
+      // Also update SharedPreferences (optional)
+      prefs.setInt('water_glasses', totalGlasses);
+      await prefs.reload();
+
+      print("currentGlasses  $totalGlasses");
     } catch (e) {
       print("Error updating water glasses: $e");
     }
 
-  }
-
-  Future<void> _saveWaterIntake() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+    // SharedPreferences prefss = await SharedPreferences.getInstance();
     await prefs.setInt('water_glasses', totalGlasses);
   }
 
@@ -169,7 +186,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> with WidgetsBindi
           if (currentGlasses > 8) {
             currentGlasses = 8;
           }
-        //  await prefs.setInt('water_glasses', currentGlasses);
+          //  await prefs.setInt('water_glasses', currentGlasses);
         } else if (actionId == 'cancel_action') {
           // ❌ User tapped Cancel
           print("❌ User dismissed water reminder.");
@@ -283,7 +300,19 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> with WidgetsBindi
   void _scheduleNotifications(int days) {
     // flutterLocalNotificationsPlugin.cancelAll();
 
-    final List<int> reminderHours = [11, 13, 14, 15, 16, 17, 18, 19, 21, 22];
+    final List<int> reminderHours = [
+      10,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      21,
+      22,
+    ];
     final List<int> reminderMinutes = [
       1,
       2,
@@ -375,8 +404,23 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> with WidgetsBindi
     }
     // Getting the water intake value from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
+    DocumentSnapshot<Map<String, dynamic>> snapshot =
+        await FirebaseFirestore.instance
+            .collection("User")
+            .doc("waterGlasess")
+            .get();
+
+    int currentGlasses = 0;
+    if (snapshot.exists &&
+        snapshot.data() != null &&
+        snapshot.data()!['Name'] != null) {
+      currentGlasses = snapshot.data()!['Name'] as int;
+    }
     int totalGlasses = prefs.getInt('water_glasses') ?? 0;
-    final String message = "Drink water! Current intake: $totalGlasses glasses";
+    //final String message = "Drink water! Current intake: $currentGlasses glasses";
+    final String message =
+        "Hydrate well and monitor your progress on the water screen";
+
     final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
           'water_reminder_channel',
@@ -457,7 +501,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> with WidgetsBindi
         notificationsJson.add(jsonEncode(notificationMap));
         await prefs.setStringList(storageKey, notificationsJson);
 
-        print("✅ Saved notification to [$storageKey]: $notificationMap");
+        print("Saved notification to [$storageKey]: $notificationMap");
       }
 
       if (mounted) setState(() {});
@@ -484,6 +528,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> with WidgetsBindi
         totalGlasses = targetGlasses;
       }
     });
+    //_loadWaterIntake();
     _saveWaterIntake();
   }
 
@@ -494,6 +539,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> with WidgetsBindi
         totalGlasses = 0;
       }
     });
+    //_removeWaterIntake();
     _saveWaterIntake();
   }
 
@@ -503,11 +549,13 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> with WidgetsBindi
     });
     _saveWaterIntake();
   }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -518,7 +566,6 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> with WidgetsBindi
   @override
   Widget build(BuildContext context) {
     double progress = totalGlasses / targetGlasses;
-
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -546,7 +593,6 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> with WidgetsBindi
                 ),
               ),
               SizedBox(height: 10),
-
               // Progress Info
               Container(
                 padding: EdgeInsets.all(16),
@@ -575,9 +621,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> with WidgetsBindi
                   ],
                 ),
               ),
-
               SizedBox(height: 24),
-
               // Inline Action Buttons
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -631,7 +675,6 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> with WidgetsBindi
                   ),
                 ],
               ),
-
               SizedBox(height: 30),
               Divider(color: Colors.deepPurple[100]),
               SizedBox(height: 8),
@@ -649,7 +692,6 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> with WidgetsBindi
                 ],
               ),
               SizedBox(height: 10),
-
               // Reminder Toggle
               Row(
                 mainAxisAlignment: MainAxisAlignment.start,
@@ -701,7 +743,6 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen> with WidgetsBindi
                   ),
                 ],
               ),
-
               // Dropdown
             ],
           ),
