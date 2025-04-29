@@ -88,7 +88,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     DateTime scheduledTime, {
     bool isRepeating = false,
     String repeatType = "daily",
-  }) async {
+  }) async
+  {
     // Request permissions for notifications and exact alarms
     await _requestPermissions();
 
@@ -472,7 +473,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 children: [
                   Text(
                     "Today's Reminders",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -480,44 +481,64 @@ class _CalendarScreenState extends State<CalendarScreen> {
             // SizedBox(height: 7),
             if (todaysReminders.isNotEmpty) ...[
               Padding(
-                padding: const EdgeInsets.all(10.0),
+                padding: const EdgeInsets.only(left: 10, right: 10, bottom: 5),
                 child: Column(
                   children:
-                  todaysReminders.map((entry) {
-                    DateTime reminderDate = entry.key;
-                    String reminderText = entry.value;
-                    return Card(
-                      elevation: 4,
-                      margin: EdgeInsets.symmetric(vertical: 4),
-                      child: ListTile(
-                        leading:
-                        CircleAvatar(
-                          backgroundColor: Colors.deepPurple.shade100,
-                          child: FaIcon(
-                            FontAwesomeIcons.solidBell,
-                            size: 16,
-                            color: Colors.deepPurple,
+                      todaysReminders.map((entry) {
+                        DateTime reminderDate = entry.key;
+                        String reminderText = entry.value;
+                        return Container(
+                          margin: EdgeInsets.symmetric(vertical: 6),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.white,
+                                Colors.white,
+                                // Colors.deepPurple.shade100,
+                                // Colors.deepPurple.shade50,
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.deepPurple.shade100.withOpacity(
+                                  0.4,
+                                ),
+                                blurRadius: 4,
+                                offset: Offset(2, 4),
+                              ),
+                            ],
                           ),
-                        ),
-                        title: Text(reminderText),
-                        trailing: IconButton(
-                          icon: FaIcon(
-                            FontAwesomeIcons.trashCan,
-                            size: 18,
-                            color: Colors.red,
-                          ),
-                          onPressed: () {
-                            _removeReminder(
-                              reminderDate,
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: Colors.deepPurple.shade200,
+                              child: FaIcon(
+                                FontAwesomeIcons.solidBell,
+                                size: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                            title: Text(
                               reminderText,
-                            );
-                          },
-                        ),
-                      ),
-                    );
-                  }).toList(),
+                              style: TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                            trailing: IconButton(
+                              icon: FaIcon(
+                                FontAwesomeIcons.trashCan,
+                                size: 18,
+                                color: Colors.red,
+                              ),
+                              onPressed: () {
+                                _removeReminder(reminderDate, reminderText);
+                              },
+                            ),
+                          ),
+                        );
+                      }).toList(),
                 ),
-              )
+              ),
             ],
             if (todaysReminders.isEmpty) ...[
               SizedBox(height: 50),

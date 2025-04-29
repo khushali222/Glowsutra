@@ -27,6 +27,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       title: Text(
         title,
         style: TextStyle(
+          fontFamily:'Poppins',
           fontSize: 24,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.2,

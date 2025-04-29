@@ -154,6 +154,46 @@ class _ProfileState extends State<Profile> {
                                 ),
                               ],
                             ),
+                          if (_resultAcne.isEmpty ||
+                              _resultType.isEmpty ||
+                              _resultTone.isEmpty ||
+                              _resultWrinkle.isEmpty ||
+                              _precautions.isEmpty)
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              // crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                GestureDetector(
+                                  onTap: () async {
+                                    await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (context) => SkinAnalyzerScreen(),
+                                      ),
+                                    );
+                                    _loadSavedData();
+                                  },
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.deepPurple.shade100,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    height: 45,
+                                    width: 120,
+                                    child: Center(
+                                      child: Text(
+                                        "Analyze Skin",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                         ],
                       ),
                     ),

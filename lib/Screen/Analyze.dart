@@ -326,7 +326,12 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
     return Shimmer.fromColors(
       baseColor: Colors.grey[300]!,
       highlightColor: Colors.white,
-      child: Container(height: 200, width: 200, color: Colors.grey),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 15),
+        child: Container(
+
+            height: 200, width: 200, color: Colors.grey),
+      ),
     );
   }
 
@@ -386,7 +391,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
                               ? _buildShimmerEffect()
                               : (widget.image != null
                                   ? Padding(
-                                    padding: const EdgeInsets.only(top: 10),
+                                    padding: const EdgeInsets.only(top: 15),
                                     child: Image.file(
                                       widget.image!,
                                       height: 200,
