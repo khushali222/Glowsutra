@@ -61,10 +61,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: Column(
                       children: [
                         Expanded(
-                          // Wrap the Image.asset with Expanded
                           child: Image.asset(
                             contents[i].image,
-                            // Remove fixed height here, let it be flexible
                           ),
                         ),
                         SizedBox(height: (height >= 840) ? 60 : 30),
@@ -82,7 +80,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           contents[i].desc,
                           style: TextStyle(
                             fontFamily: "Mulish",
-
                             fontWeight: FontWeight.w300,
                             fontSize: (width <= 550) ? 17 : 25,
                           ),
@@ -103,98 +100,101 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(
                       contents.length,
-                      (int index) => _buildDots(index: index),
+                          (int index) => _buildDots(index: index),
                     ),
                   ),
                   _currentPage + 1 == contents.length
                       ? Padding(
-                        padding: const EdgeInsets.all(30),
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            final prefs = await SharedPreferences.getInstance();
-                            await prefs.setBool('onboarding_complete', true);
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => HomePage(),
-                              ),
+                    padding: const EdgeInsets.all(30),
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.setBool('onboarding_complete', true);
+
+                        // This will clear the OnboardingScreen from the navigation stack
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => HomePage(),
+                          ),
+                              (route) => false, // Remove all previous screens
+                        );
+                      },
+                      child: const Text("START"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(50),
+                        ),
+                        padding:
+                        (width <= 550)
+                            ? const EdgeInsets.symmetric(
+                          horizontal: 100,
+                          vertical: 20,
+                        )
+                            : EdgeInsets.symmetric(
+                          horizontal: width * 0.2,
+                          vertical: 25,
+                        ),
+                        textStyle: TextStyle(
+                          fontSize: (width <= 550) ? 13 : 17,
+                        ),
+                      ),
+                    ),
+                  )
+                      : Padding(
+                    padding: const EdgeInsets.all(30),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton(
+                          onPressed: () {
+                            _controller.jumpToPage(2);
+                          },
+                          child: const Text(
+                            "SKIP",
+                            style: TextStyle(color: Colors.black),
+                          ),
+                          style: TextButton.styleFrom(
+                            elevation: 0,
+                            textStyle: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: (width <= 550) ? 13 : 17,
+                            ),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            _controller.nextPage(
+                              duration: const Duration(milliseconds: 200),
+                              curve: Curves.easeIn,
                             );
                           },
-                          child: const Text("START"),
+                          child: const Text("NEXT"),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.black,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(50),
                             ),
+                            elevation: 0,
                             padding:
-                                (width <= 550)
-                                    ? const EdgeInsets.symmetric(
-                                      horizontal: 100,
-                                      vertical: 20,
-                                    )
-                                    : EdgeInsets.symmetric(
-                                      horizontal: width * 0.2,
-                                      vertical: 25,
-                                    ),
+                            (width <= 550)
+                                ? const EdgeInsets.symmetric(
+                              horizontal: 30,
+                              vertical: 20,
+                            )
+                                : const EdgeInsets.symmetric(
+                              horizontal: 30,
+                              vertical: 25,
+                            ),
                             textStyle: TextStyle(
                               fontSize: (width <= 550) ? 13 : 17,
                             ),
                           ),
                         ),
-                      )
-                      : Padding(
-                        padding: const EdgeInsets.all(30),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            TextButton(
-                              onPressed: () {
-                                _controller.jumpToPage(2);
-                              },
-                              child: const Text(
-                                "SKIP",
-                                style: TextStyle(color: Colors.black),
-                              ),
-                              style: TextButton.styleFrom(
-                                elevation: 0,
-                                textStyle: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: (width <= 550) ? 13 : 17,
-                                ),
-                              ),
-                            ),
-                            ElevatedButton(
-                              onPressed: () {
-                                _controller.nextPage(
-                                  duration: const Duration(milliseconds: 200),
-                                  curve: Curves.easeIn,
-                                );
-                              },
-                              child: const Text("NEXT"),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.black,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(50),
-                                ),
-                                elevation: 0,
-                                padding:
-                                    (width <= 550)
-                                        ? const EdgeInsets.symmetric(
-                                          horizontal: 30,
-                                          vertical: 20,
-                                        )
-                                        : const EdgeInsets.symmetric(
-                                          horizontal: 30,
-                                          vertical: 25,
-                                        ),
-                                textStyle: TextStyle(
-                                  fontSize: (width <= 550) ? 13 : 17,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),

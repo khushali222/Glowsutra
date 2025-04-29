@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -19,7 +20,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _selectedDate = DateTime.now();
   Map<DateTime, List<String>> _reminders = {};
   FlutterLocalNotificationsPlugin _notificationsPlugin =
-  FlutterLocalNotificationsPlugin();
+      FlutterLocalNotificationsPlugin();
   List<String> _unreadNotifications = [];
 
   Map<String, String> _presetReminders = {
@@ -43,10 +44,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Future<void> requestNotificationPermission() async {
     final androidPlugin =
-    _notificationsPlugin
-        .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin
-    >();
+        _notificationsPlugin
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
     final result = await androidPlugin?.requestNotificationsPermission();
     if (result ?? false) {
       print("Notification Permission Granted!");
@@ -69,14 +70,38 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Future<void> _scheduleNotification(
-      String reminder,
-      DateTime scheduledTime, {
-        bool isRepeating = false,
-        String repeatType = "daily",
-      }) async {
-    if (scheduledTime.isBefore(DateTime.now())) return;
+  Future<void> _requestPermissions() async {
+    // Request notifications permission
+    if (await Permission.notification.isDenied) {
+      await Permission.notification.request();
+    }
 
+    // Request exact alarm permission (for scheduling notifications at exact times)
+    if (await Permission.scheduleExactAlarm.isDenied ||
+        await Permission.scheduleExactAlarm.isPermanentlyDenied) {
+      await openAppSettings(); // This opens the settings for the user to enable permissions manually
+    }
+  }
+
+  Future<void> _scheduleNotification(
+    String reminder,
+    DateTime scheduledTime, {
+    bool isRepeating = false,
+    String repeatType = "daily",
+  }) async {
+    // Request permissions for notifications and exact alarms
+    await _requestPermissions();
+
+    // If the scheduled time is in the past, return early
+    if (scheduledTime.isBefore(DateTime.now())) {
+      print("Scheduled time is in the past: $scheduledTime");
+      return;
+    }
+
+    // Initialize time zones (ensure this is done before scheduling notifications)
+    tz.initializeTimeZones();
+
+    // Android notification details
     final androidDetails = AndroidNotificationDetails(
       'reminder_channel',
       'Reminders',
@@ -96,32 +121,114 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     final details = NotificationDetails(android: androidDetails);
 
+    // Unique ID generation for each notification
     final id =
-    (reminder.hashCode ^ scheduledTime.millisecondsSinceEpoch) & 0x7FFFFFFF;
+        (reminder.hashCode ^ scheduledTime.millisecondsSinceEpoch) & 0x7FFFFFFF;
 
-    await _notificationsPlugin.zonedSchedule(
-      id,
-      'Skincare Reminder',
-      reminder,
-      tz.TZDateTime.from(scheduledTime, tz.local),
-      details,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents:
-      isRepeating
-          ? (repeatType == "daily"
-          ? DateTimeComponents.time
-          : repeatType == "weekly"
-          ? DateTimeComponents.dayOfWeekAndTime
-          : DateTimeComponents.dayOfMonthAndTime)
-          : null,
-    );
+    try {
+      // Ensure exact alarm permission is granted (fallback to inexact if not)
+      bool canScheduleExact = await Permission.scheduleExactAlarm.isGranted;
+
+      await _notificationsPlugin.zonedSchedule(
+        id,
+        'Skincare Reminder',
+        reminder,
+        tz.TZDateTime.from(scheduledTime, tz.local),
+        details,
+        androidScheduleMode:
+            canScheduleExact
+                ? AndroidScheduleMode.exactAllowWhileIdle
+                : AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents:
+            isRepeating
+                ? (repeatType == "daily"
+                    ? DateTimeComponents.time
+                    : repeatType == "weekly"
+                    ? DateTimeComponents.dayOfWeekAndTime
+                    : DateTimeComponents.dayOfMonthAndTime)
+                : null,
+      );
+
+      print("Scheduled notification successfully at $scheduledTime");
+    } catch (e) {
+      // Handle any errors while scheduling the notification
+      print("Error scheduling notification: $e");
+
+      await _notificationsPlugin.zonedSchedule(
+        id,
+        'Skincare Reminder',
+        reminder,
+        tz.TZDateTime.from(scheduledTime, tz.local),
+        details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        matchDateTimeComponents:
+            isRepeating
+                ? (repeatType == "daily"
+                    ? DateTimeComponents.time
+                    : repeatType == "weekly"
+                    ? DateTimeComponents.dayOfWeekAndTime
+                    : DateTimeComponents.dayOfMonthAndTime)
+                : null,
+      );
+    }
+
     _saveNotificationWhenTimeArrives(reminder, scheduledTime);
   }
 
+  // Future<void> _scheduleNotification(
+  //   String reminder,
+  //   DateTime scheduledTime, {
+  //   bool isRepeating = false,
+  //   String repeatType = "daily",
+  // }) async {
+  //   await _requestPermissions();
+  //   if (scheduledTime.isBefore(DateTime.now())) return;
+  //
+  //   final androidDetails = AndroidNotificationDetails(
+  //     'reminder_channel',
+  //     'Reminders',
+  //     importance: Importance.high,
+  //     priority: Priority.high,
+  //     channelDescription: 'Get reminders for your skincare routine!',
+  //     icon: '@mipmap/ic_launcher',
+  //     largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
+  //     color: Colors.deepPurple.shade100,
+  //     enableLights: true,
+  //     ledColor: Colors.purple,
+  //     ledOnMs: 1000,
+  //     ledOffMs: 500,
+  //     enableVibration: true,
+  //     styleInformation: BigTextStyleInformation(reminder),
+  //   );
+  //
+  //   final details = NotificationDetails(android: androidDetails);
+  //
+  //   final id =
+  //       (reminder.hashCode ^ scheduledTime.millisecondsSinceEpoch) & 0x7FFFFFFF;
+  //
+  //   await _notificationsPlugin.zonedSchedule(
+  //     id,
+  //     'Skincare Reminder',
+  //     reminder,
+  //     tz.TZDateTime.from(scheduledTime, tz.local),
+  //     details,
+  //     androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+  //     matchDateTimeComponents:
+  //         isRepeating
+  //             ? (repeatType == "daily"
+  //                 ? DateTimeComponents.time
+  //                 : repeatType == "weekly"
+  //                 ? DateTimeComponents.dayOfWeekAndTime
+  //                 : DateTimeComponents.dayOfMonthAndTime)
+  //             : null,
+  //   );
+  //   _saveNotificationWhenTimeArrives(reminder, scheduledTime);
+  // }
+
   void _saveNotificationWhenTimeArrives(
-      String reminder,
-      DateTime scheduledTime,
-      ) {
+    String reminder,
+    DateTime scheduledTime,
+  ) {
     Duration delay = scheduledTime.difference(DateTime.now());
     if (delay.isNegative) return;
 
@@ -151,33 +258,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
   }
 
-  // Future<void> _togglePresetReminder(String reminder, String planType) async {
-  //   setState(() {
-  //     _presetReminders[reminder] = planType;
-  //   });
-  //
-  //   _savePresetSettings();
-  //   _cancelScheduledNotifications(reminder);
-  //
-  //   if (planType != "off") {
-  //     final now = DateTime.now();
-  //     final List<int> reminderHours = [8, 10, 13, 15, 16, 19, 20, 22];
-  //
-  //     for (int hour in reminderHours) {
-  //       DateTime reminderTime = DateTime(now.year, now.month, now.day, hour);
-  //
-  //       // Only schedule if it's still ahead of the current time
-  //       if (reminderTime.isAfter(now)) {
-  //         _scheduleNotification(
-  //           reminder,
-  //           reminderTime,
-  //           isRepeating: true,
-  //           repeatType: planType,
-  //         );
-  //       }
-  //     }
-  //   }
-  // }
   Future<void> _togglePresetReminder(String reminder, String planType) async {
     setState(() {
       _presetReminders[reminder] = planType;
@@ -259,7 +339,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Future<void> _saveReminders() async {
     final prefs = await SharedPreferences.getInstance();
     Map<String, List<String>> formatted = _reminders.map(
-          (key, value) => MapEntry(key.toIso8601String(), value),
+      (key, value) => MapEntry(key.toIso8601String(), value),
     );
     await prefs.setString('reminders', jsonEncode(formatted));
   }
@@ -283,29 +363,29 @@ class _CalendarScreenState extends State<CalendarScreen> {
         context: context,
         builder:
             (_) => AlertDialog(
-          title: Text("Add Reminder"),
-          content: TextField(
-            controller: controller,
-            decoration: InputDecoration(hintText: "Enter reminder"),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                if (controller.text.isNotEmpty) {
-                  setState(() {
-                    _reminders[_selectedDate] ??= [];
-                    _reminders[_selectedDate]!.add(controller.text);
-                  });
+              title: Text("Add Reminder"),
+              content: TextField(
+                controller: controller,
+                decoration: InputDecoration(hintText: "Enter reminder"),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    if (controller.text.isNotEmpty) {
+                      setState(() {
+                        _reminders[_selectedDate] ??= [];
+                        _reminders[_selectedDate]!.add(controller.text);
+                      });
 
-                  _scheduleNotification(controller.text, scheduledDateTime);
-                  _saveReminders();
-                  Navigator.pop(context);
-                }
-              },
-              child: Text("Save"),
+                      _scheduleNotification(controller.text, scheduledDateTime);
+                      _saveReminders();
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: Text("Save"),
+                ),
+              ],
             ),
-          ],
-        ),
       );
     }
   }
@@ -337,14 +417,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return _reminders.entries
         .where(
           (entry) =>
-      entry.key.year == _selectedDate.year &&
-          entry.key.month == _selectedDate.month &&
-          entry.key.day == _selectedDate.day,
-    )
+              entry.key.year == _selectedDate.year &&
+              entry.key.month == _selectedDate.month &&
+              entry.key.day == _selectedDate.day,
+        )
         .expand(
           (entry) =>
-          entry.value.map((reminder) => MapEntry(entry.key, reminder)),
-    )
+              entry.value.map((reminder) => MapEntry(entry.key, reminder)),
+        )
         .toList();
   }
 
@@ -380,108 +460,70 @@ class _CalendarScreenState extends State<CalendarScreen> {
               onDateChange: (date) => setState(() => _selectedDate = date),
               activeColor: Colors.deepPurple[100],
             ),
-            SizedBox(height: 10),
-            // Row(
-            //   children: [
-            //     SizedBox(width: 15),
-            //     Text(
-            //       "Schedule Notification",
-            //       style: TextStyle(fontWeight: FontWeight.bold),
-            //     ),
-            //   ],
-            // ),
-            // Padding(
-            //   padding: const EdgeInsets.all(12),
-            //   child: Column(
-            //     children:
-            //     _presetReminders.keys.map((reminder) {
-            //       return Card(
-            //         shape: RoundedRectangleBorder(
-            //           borderRadius: BorderRadius.circular(10),
-            //         ),
-            //         child: Padding(
-            //           padding: EdgeInsets.symmetric(
-            //             horizontal: 12,
-            //             vertical: 10,
-            //           ),
-            //           child: Row(
-            //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            //             children: [
-            //               Text(
-            //                 reminder,
-            //                 style: TextStyle(fontWeight: FontWeight.w500),
-            //               ),
-            //               Container(
-            //                 padding: EdgeInsets.symmetric(horizontal: 12),
-            //                 decoration: BoxDecoration(
-            //                   color: Colors.deepPurple.shade100,
-            //                   borderRadius: BorderRadius.circular(12),
-            //                 ),
-            //                 child: DropdownButtonHideUnderline(
-            //                   child: DropdownButton<String>(
-            //                     value: _presetReminders[reminder],
-            //                     items:
-            //                     ["off", "daily", "weekly", "monthly"]
-            //                         .map(
-            //                           (type) => DropdownMenuItem(
-            //                         value: type,
-            //                         child: Text(type),
-            //                       ),
-            //                     )
-            //                         .toList(),
-            //                     onChanged: (val) {
-            //                       if (val != null)
-            //                         _togglePresetReminder(reminder, val);
-            //                       print("calling");
-            //                     },
-            //                     icon: Icon(
-            //                       Icons.arrow_drop_down,
-            //                       color: Colors.deepPurple,
-            //                     ),
-            //                   ),
-            //                 ),
-            //               ),
-            //             ],
-            //           ),
-            //         ),
-            //       );
-            //     }).toList(),
-            //   ),
-            // ),
-            if (todaysReminders.isNotEmpty) ...[
-              Row(
+            SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.only(left: 8, right: 8),
+              child: Divider(),
+            ),
+            SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.only(left: 14, right: 14),
+              child: Row(
                 children: [
-                  SizedBox(width: 15),
                   Text(
-                    "Reminders",
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    "Today's Reminders",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
+            ),
+            // SizedBox(height: 7),
+            if (todaysReminders.isNotEmpty) ...[
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 15),
+                padding: const EdgeInsets.all(10.0),
                 child: Column(
                   children:
                   todaysReminders.map((entry) {
+                    DateTime reminderDate = entry.key;
+                    String reminderText = entry.value;
                     return Card(
+                      elevation: 4,
+                      margin: EdgeInsets.symmetric(vertical: 4),
                       child: ListTile(
-                        leading: FaIcon(
-                          FontAwesomeIcons.stopwatch,
-                          color: Colors.deepPurple,
+                        leading:
+                        CircleAvatar(
+                          backgroundColor: Colors.deepPurple.shade100,
+                          child: FaIcon(
+                            FontAwesomeIcons.solidBell,
+                            size: 16,
+                            color: Colors.deepPurple,
+                          ),
                         ),
-                        title: Text(entry.value),
+                        title: Text(reminderText),
                         trailing: IconButton(
                           icon: FaIcon(
                             FontAwesomeIcons.trashCan,
+                            size: 18,
                             color: Colors.red,
                           ),
-                          onPressed:
-                              () => _removeReminder(entry.key, entry.value),
+                          onPressed: () {
+                            _removeReminder(
+                              reminderDate,
+                              reminderText,
+                            );
+                          },
                         ),
                       ),
                     );
                   }).toList(),
                 ),
+              )
+            ],
+            if (todaysReminders.isEmpty) ...[
+              SizedBox(height: 50),
+              Text(
+                "No reminders for today!",
+                style: TextStyle(color: Colors.grey),
               ),
             ],
             SizedBox(height: 60),

@@ -617,7 +617,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value:
-                    selectedValue!.isNotEmpty
+                    selectedValue.toString().isNotEmpty
                         ? selectedValue
                         : null, // Allow empty value
                 hint: Text("Select $label"), // Placeholder when empty

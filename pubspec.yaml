@@ -65,6 +65,8 @@ dependencies:
   build_runner:
   firebase_core:
   cloud_firestore:
+  permission_handler:
+
 
 
 dev_dependencies:
@@ -112,7 +114,10 @@ flutter:
   # "family" key with the font family name, and a "fonts" key with a
   # list giving the asset and other descriptors for the font. For
   # example:
-  # fonts:
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/font/poppins.ttf
   #   - family: Schyler
   #     fonts:
   #       - asset: fonts/Schyler-Regular.ttf

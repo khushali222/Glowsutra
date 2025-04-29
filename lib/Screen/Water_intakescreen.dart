@@ -1,13 +1,16 @@
 import 'dart:convert';
-
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:uuid/uuid.dart';
 
 @pragma('vm:entry-point')
 Future<void> notificationTapBackground(
@@ -22,37 +25,58 @@ Future<void> notificationTapBackground(
   print("Payload: $payload");
   final prefs = await SharedPreferences.getInstance();
   // Add logic based on the action ID
+
   if (actionId == 'ok_action') {
     try {
+      final deviceId =
+          prefs.getString('device_id') ??
+          "unknown_device_id"; // Get the device ID from SharedPreferences
+
+      print("$deviceId Device ID (from SharedPreferences): ");
       // Fetch current glass count from Firestore
+      // DocumentSnapshot<Map<String, dynamic>> snapshot =
+      //     await FirebaseFirestore.instance
+      //         .collection("User")
+      //         .doc("waterGlasess")
+      //         .get();
       DocumentSnapshot<Map<String, dynamic>> snapshot =
           await FirebaseFirestore.instance
               .collection("User")
-              .doc("waterGlasess")
+              .doc("fireid")
+              .collection("waterGlasess")
+              .doc(deviceId)
               .get();
 
       int currentGlasses = 0;
       if (snapshot.exists &&
           snapshot.data() != null &&
-          snapshot.data()!['Name'] != null) {
-        currentGlasses = snapshot.data()!['Name'] as int;
+          snapshot.data()!['glasscount'] != null) {
+        currentGlasses = snapshot.data()!['glasscount'] as int;
       }
 
       currentGlasses += 1;
 
-      // Optional: limit to maximum 25 glasses
+      // Optional: limit to maximum 8 glasses
       if (currentGlasses > 8) {
         currentGlasses = 8;
       }
-
       // Update in Firestore
-      FirebaseFirestore.instance.collection("User").doc("waterGlasess").set({
-        "Name": currentGlasses,
-      });
+      // FirebaseFirestore.instance.collection("User").doc("waterGlasess").set({
+      //   "Name": currentGlasses,
+      // });
+      FirebaseFirestore.instance
+          .collection("User")
+          .doc("fireid")
+          .collection("waterGlasess")
+          .doc(deviceId)
+          .set({"glasscount": currentGlasses});
       // Also update SharedPreferences (optional)
-      prefs.setInt('water_glasses', currentGlasses);
-      await prefs.reload();
 
+      int id = 0;
+      prefs.setInt('water_glasses', currentGlasses);
+      prefs.setInt('id', id);
+      await prefs.reload();
+      print("deviceid $id");
       print("currentGlasses  $currentGlasses");
     } catch (e) {
       print("Error updating water glasses: $e");
@@ -64,6 +88,41 @@ Future<void> notificationTapBackground(
     print("User tapped the notification body.");
   }
 }
+
+Future<String> getDeviceId() async {
+  final deviceInfo = DeviceInfoPlugin();
+  if (Platform.isIOS) {
+    final iosInfo = await deviceInfo.iosInfo;
+    return iosInfo.identifierForVendor ?? "unknown_device_id";
+  } else if (Platform.isAndroid) {
+    final androidInfo = await deviceInfo.androidInfo;
+    return androidInfo.id ?? "unknown_device_id";
+  }
+  return "unknown_device_id";
+}
+// const _secureStorage = FlutterSecureStorage();
+// const deviceIdKey = 'com.glowsutra.secure_device_id_493Xv1';
+//
+// Future<String> getDeviceId() async {
+//   final deviceInfo = DeviceInfoPlugin();
+//
+//   if (Platform.isIOS) {
+//     // Check if UUID is already stored in iOS Keychain
+//     final existingId = await _secureStorage.read(key: deviceIdKey);
+//     if (existingId != null) return existingId;
+//
+//     // Generate and store new UUID
+//     final newId = const Uuid().v4();
+//     await _secureStorage.write(key: deviceIdKey, value: newId);
+//     return newId;
+//
+//   } else if (Platform.isAndroid) {
+//     final androidInfo = await deviceInfo.androidInfo;
+//     return androidInfo.id; // This is stable and unique for Android devices
+//   }
+//
+//   return "unknown_device_id";
+// }
 
 class WaterIntakeScreen extends StatefulWidget {
   @override
@@ -88,23 +147,37 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     _loadWaterIntake();
     WidgetsBinding.instance.addObserver(this);
     _loadNotificationPreferences();
+    _fetchAndSaveDeviceId();
+  }
+
+  Future<void> _fetchAndSaveDeviceId() async {
+    final deviceId = await getDeviceId(); // Get device ID
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString(
+      'device_id',
+      deviceId,
+    ); // Save device ID in SharedPreferences
+    print("Device ID saved in SharedPreferences: $deviceId");
   }
 
   Future<void> _loadWaterIntake() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
+    final deviceId = prefs.getString('device_id') ?? "unknown_device_id";
     try {
       // Fetch current glass count from Firestore
       DocumentSnapshot<Map<String, dynamic>> snapshot =
           await FirebaseFirestore.instance
               .collection("User")
-              .doc("waterGlasess")
+              .doc("fireid")
+              .collection("waterGlasess")
+              .doc(deviceId)
               .get();
 
       int currentGlasses = 0;
       if (snapshot.exists &&
           snapshot.data() != null &&
-          snapshot.data()!['Name'] != null) {
-        currentGlasses = snapshot.data()!['Name'] as int;
+          snapshot.data()!['glasscount'] != null) {
+        currentGlasses = snapshot.data()!['glasscount'] as int;
       }
       setState(() {
         totalGlasses = currentGlasses;
@@ -119,11 +192,15 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
 
   Future<void> _saveWaterIntake() async {
     final prefs = await SharedPreferences.getInstance();
+    final deviceId = prefs.getString('device_id') ?? "unknown_device_id";
     try {
       // Update in Firestore
-      FirebaseFirestore.instance.collection("User").doc("waterGlasess").set({
-        "Name": totalGlasses,
-      });
+      FirebaseFirestore.instance
+          .collection("User")
+          .doc("fireid")
+          .collection("waterGlasess")
+          .doc(deviceId)
+          .set({"glasscount": totalGlasses});
       // Also update SharedPreferences (optional)
       prefs.setInt('water_glasses', totalGlasses);
       await prefs.reload();
@@ -150,7 +227,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     await prefs.setBool(
       'notifications_enabled',
       notificationsEnabled,
-    ); // ✅ use the right key!
+    ); //  use the right key!
     await prefs.setString('reminder_type', selectedReminder);
   }
 
@@ -176,9 +253,9 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
         }
         final prefs = await SharedPreferences.getInstance();
         if (actionId == 'ok_action') {
-          // 🔔 User tapped OK
-          print("✅ User acknowledged water reminder.");
-          // 👉 Optional: update intake counter, store time, etc.
+          // User tapped OK
+          print("User acknowledged water reminder.");
+          // Optional: update intake counter, store time, etc.
           // Increase glass count by 1
           int currentGlasses = prefs.getInt('water_glasses') ?? 0;
           currentGlasses += 1;
@@ -188,12 +265,12 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
           }
           //  await prefs.setInt('water_glasses', currentGlasses);
         } else if (actionId == 'cancel_action') {
-          // ❌ User tapped Cancel
-          print("❌ User dismissed water reminder.");
-          // 👉 Optional: log skipped time, or take no action
+          // User tapped Cancel
+          print("User dismissed water reminder.");
+          // Optional: log skipped time, or take no action
         } else {
-          // 📱 User tapped the notification body
-          print("📩 Notification tapped (not a button).");
+          // User tapped the notification body
+          print("Notification tapped (not a button).");
         }
       },
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
@@ -202,39 +279,37 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
 
   void onTapNotification(String payload) async {
     final prefs = await SharedPreferences.getInstance();
-
-    List<String> notificationsJson =
-        prefs.getStringList('unreadNotifications') ?? [];
-
-    List<Map<String, dynamic>> notifications =
-        notificationsJson
-            .map((item) => jsonDecode(item) as Map<String, dynamic>)
-            .toList();
-
-    DateTime payloadTime = DateTime.parse(payload);
-    print("update notific before $notifications");
-    // Remove the notification with the corresponding payload time
-    notifications.removeWhere((notification) {
-      String? storedPayload = notification['payload'];
-      if (storedPayload == null) return false;
-      DateTime storedTime = DateTime.parse(storedPayload);
-      return storedTime.isAtSameMomentAs(payloadTime);
-    });
-    print("update notific $notifications");
-    // Save the updated notifications list back to SharedPreferences
-    List<String> updatedJson =
-        notifications.map((notification) => jsonEncode(notification)).toList();
-
-    await prefs.setStringList('unreadNotifications', updatedJson);
-
-    // Only update the state if the widget is still mounted
-    if (mounted) {
-      setState(() {
-        // Update the UI state, if needed, or just refresh the list
-      });
-    }
-
-    print("Removed notification with payload time: $payload");
+    // List<String> notificationsJson =
+    //     prefs.getStringList('unreadNotifications') ?? [];
+    //
+    // List<Map<String, dynamic>> notifications =
+    //     notificationsJson
+    //         .map((item) => jsonDecode(item) as Map<String, dynamic>)
+    //         .toList();
+    //
+    // DateTime payloadTime = DateTime.parse(payload);
+    // print("update notific before $notifications");
+    // // Remove the notification with the corresponding payload time
+    // notifications.removeWhere((notification) {
+    //   String? storedPayload = notification['payload'];
+    //   if (storedPayload == null) return false;
+    //   DateTime storedTime = DateTime.parse(storedPayload);
+    //   return storedTime.isAtSameMomentAs(payloadTime);
+    // });
+    // print("update notific $notifications");
+    // // Save the updated notifications list back to SharedPreferences
+    // List<String> updatedJson =
+    //     notifications.map((notification) => jsonEncode(notification)).toList();
+    //
+    // await prefs.setStringList('unreadNotifications', updatedJson);
+    //
+    // // Only update the state if the widget is still mounted
+    // if (mounted) {
+    //   setState(() {
+    //     // Update the UI state, if needed, or just refresh the list
+    //   });
+    // }
+    print("notification with payload time: $payload");
   }
 
   void _toggleNotifications(bool value) async {
@@ -273,7 +348,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
         await prefs.remove('saved_notification_ids');
       }
 
-      // ✅ Safely show snackbar only if widget is still mounted
+      // Safely show snackbar only if widget is still mounted
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -301,7 +376,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     // flutterLocalNotificationsPlugin.cancelAll();
 
     final List<int> reminderHours = [
-      10,
+      11,
       12,
       13,
       14,
@@ -385,6 +460,19 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     }
   }
 
+  Future<void> _requestPermissions() async {
+    // Request notifications permission
+    if (await Permission.notification.isDenied) {
+      await Permission.notification.request();
+    }
+
+    // Request exact alarm permission (for scheduling notifications at exact times)
+    if (await Permission.scheduleExactAlarm.isDenied ||
+        await Permission.scheduleExactAlarm.isPermanentlyDenied) {
+      await openAppSettings(); // This opens the settings for the user to enable permissions manually
+    }
+  }
+
   Future<void> _scheduleNotification(
     int dayOffset,
     int hour,
@@ -399,25 +487,31 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
       minute,
     ).add(Duration(days: dayOffset));
 
+    await _requestPermissions(); // Make sure you request notification + exact_alarm
+
     if (scheduledTime.isBefore(now)) {
       scheduledTime = scheduledTime.add(Duration(days: 1));
     }
-    // Getting the water intake value from SharedPreferences
+
     final prefs = await SharedPreferences.getInstance();
+    final deviceId = prefs.getString('device_id') ?? "unknown_device_id";
     DocumentSnapshot<Map<String, dynamic>> snapshot =
         await FirebaseFirestore.instance
             .collection("User")
-            .doc("waterGlasess")
+            .doc("fireid")
+            .collection("waterGlasess")
+            .doc(deviceId)
             .get();
 
     int currentGlasses = 0;
     if (snapshot.exists &&
         snapshot.data() != null &&
-        snapshot.data()!['Name'] != null) {
-      currentGlasses = snapshot.data()!['Name'] as int;
+        snapshot.data()!['glasscount'] != null) {
+      currentGlasses = snapshot.data()!['glasscount'] as int;
     }
+
     int totalGlasses = prefs.getInt('water_glasses') ?? 0;
-    //final String message = "Drink water! Current intake: $currentGlasses glasses";
+
     final String message =
         "Hydrate well and monitor your progress on the water screen";
 
@@ -428,10 +522,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
           importance: Importance.high,
           priority: Priority.high,
           actions: [
-            AndroidNotificationAction(
-              'ok_action', // action ID
-              'OK', // label shown to user
-            ),
+            AndroidNotificationAction('ok_action', 'OK'),
             AndroidNotificationAction('cancel_action', 'Cancel'),
           ],
         );
@@ -439,25 +530,36 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     final NotificationDetails notificationDetails = NotificationDetails(
       android: androidDetails,
     );
+
     int id = dayOffset * 10000 + hour * 100 + minute;
+
     List<String> existingIds =
         prefs.getStringList('saved_notification_ids') ?? [];
     if (!existingIds.contains(id.toString())) {
       existingIds.add(id.toString());
       await prefs.setStringList('saved_notification_ids', existingIds);
     }
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      id, //for only one day
-      // hour + dayOffset * 24, //for only one day
-      'Time to drink water!',
-      message,
-      tz.TZDateTime.from(scheduledTime, tz.local),
-      notificationDetails,
-      payload: scheduledTime.toString(),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-    );
-    print("calling abc");
-    //_saveWaterIntakeNotification(message);
+
+    try {
+      bool canScheduleExact = await Permission.scheduleExactAlarm.isGranted;
+
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        id,
+        'Time to drink water!',
+        message,
+        tz.TZDateTime.from(scheduledTime, tz.local),
+        notificationDetails,
+        payload: scheduledTime.toString(),
+        androidScheduleMode:
+            canScheduleExact
+                ? AndroidScheduleMode.exactAllowWhileIdle
+                : AndroidScheduleMode.inexactAllowWhileIdle, // <-- fallback
+      );
+      // print("Notification scheduled successfully");
+    } catch (e) {
+      print("Error scheduling notification: $e");
+    }
+
     _saveNotificationWhenTimeArrives(
       message,
       scheduledTime,

@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-
+import 'dart:io';
 import 'package:carousel_slider/carousel_options.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -12,13 +12,12 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
-
+import '../widgets/custom_appbar.dart';
 import 'Calander.dart';
 import 'Home_Remedies.dart';
 import 'Profile.dart';
 import 'Skincaretips.dart';
 import 'Water_intakescreen.dart';
-import 'notification.dart';
 
 class Dashboard extends StatefulWidget {
   const Dashboard({super.key});
@@ -36,28 +35,34 @@ class _DashboardState extends State<Dashboard> {
   void initState() {
     super.initState();
     _initializeNotifications();
-    _loadReminders(); // Load reminders when dashboard starts
+    _loadReminders();
     _loadWaterIntake();
     _loadUnreadNotifications();
+    _fetchAndSaveDeviceId();
   }
 
-  // Future<void> _loadReminders() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   final String? savedReminders = prefs.getString('reminders');
-  //
-  //   if (savedReminders != null) {
-  //     Map<String, dynamic> decodedReminders = jsonDecode(savedReminders);
-  //     setState(() {
-  //       _reminders = decodedReminders.map((key, value) {
-  //         return MapEntry(DateTime.parse(key), List<String>.from(value));
-  //       });
-  //     });
-  //   }
-  //   _unreadNotifications = prefs.getStringList('unreadNotifications') ?? [];
-  //   setState(() {
-  //     _isLoading = false;
-  //   });
-  // }
+  Future<void> _fetchAndSaveDeviceId() async {
+    final deviceId = await getDeviceId(); // Get device ID
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString(
+      'device_id',
+      deviceId,
+    ); // Save device ID in SharedPreferences
+    print("Device ID saved in SharedPreferences: $deviceId");
+  }
+
+  Future<String> getDeviceId() async {
+    final deviceInfo = DeviceInfoPlugin();
+    if (Platform.isIOS) {
+      final iosInfo = await deviceInfo.iosInfo;
+      return iosInfo.identifierForVendor ?? "unknown_device_id";
+    } else if (Platform.isAndroid) {
+      final androidInfo = await deviceInfo.androidInfo;
+      return androidInfo.id ?? "unknown_device_id";
+    }
+    return "unknown_device_id";
+  }
+
   Future<void> _loadReminders() async {
     final prefs = await SharedPreferences.getInstance();
     final String? savedReminders = prefs.getString('reminders');
@@ -164,23 +169,27 @@ class _DashboardState extends State<Dashboard> {
   // }
   Future<void> _loadWaterIntake() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
+    final deviceId = prefs.getString('device_id') ?? "unknown_device_id";
+    //print("dashid $deviceId");
     try {
       // Fetch current glass count from Firestore
       DocumentSnapshot<Map<String, dynamic>> snapshot =
           await FirebaseFirestore.instance
               .collection("User")
-              .doc("waterGlasess")
+              .doc("fireid")
+              .collection("waterGlasess")
+              .doc(deviceId)
               .get();
 
       int currentGlasses = 0;
       if (snapshot.exists &&
           snapshot.data() != null &&
-          snapshot.data()!['Name'] != null) {
-        currentGlasses = snapshot.data()!['Name'] as int;
+          snapshot.data()!['glasscount'] != null) {
+        currentGlasses = snapshot.data()!['glasscount'] as int;
       }
       setState(() {
         totalGlasses = currentGlasses;
-        print(totalGlasses);
+        // print(totalGlasses);
       });
 
       // Update in Firestore
@@ -245,90 +254,9 @@ class _DashboardState extends State<Dashboard> {
     return StreamBuilder<void>(
       stream: _notificationStream.stream,
       builder: (context, snapshot) {
-        _loadUnreadNotifications();
-        //  _loadReminders(); // Reload reminders whenever a new notification is received
+        _loadWaterIntake();
         return Scaffold(
-          drawer: Drawer(),
-          appBar: AppBar(
-            backgroundColor: Colors.deepPurple[100],
-            title: Text("Dashboard"),
-            actions: [
-              // GestureDetector(
-              //   onTap: () async {
-              //     // Navigate to the NotificationScreen
-              //     await Navigator.push(
-              //       context,
-              //       MaterialPageRoute(
-              //         builder:
-              //             (context) => NotificationScreen(
-              //               onClear: () async {
-              //                 setState(() {
-              //                   _unreadNotifications.clear();
-              //                 });
-              //
-              //                 final prefs =
-              //                     await SharedPreferences.getInstance();
-              //                 // Clear both water and calendar notifications in SharedPreferences
-              //                 await prefs.setStringList(
-              //                   'water_notification_unreadNotifications',
-              //                   [],
-              //                 );
-              //                 await prefs.setStringList(
-              //                   'calender_notification_unreadNotifications',
-              //                   [],
-              //                 );
-              //               },
-              //             ),
-              //       ),
-              //     );
-              //     // After returning, reload notifications to reflect changes
-              //     _loadUnreadNotifications(); // Reload the unread notifications after coming back
-              //     setState(() {}); // Refresh the main screen UI
-              //   },
-              //   child: Padding(
-              //     padding: const EdgeInsets.all(10),
-              //     child: Stack(
-              //       children: [
-              //         FaIcon(
-              //           FontAwesomeIcons.bell,
-              //           size: 20,
-              //           color: Colors.black,
-              //         ),
-              //         // Show red dot if there are unread notifications
-              //         if (_unreadNotifications.isNotEmpty)
-              //           Positioned(
-              //             right: 0,
-              //             top: 0,
-              //             child: Container(
-              //               padding: const EdgeInsets.all(4),
-              //               decoration: BoxDecoration(
-              //                 color: Colors.red,
-              //                 shape: BoxShape.circle,
-              //               ),
-              //               constraints: const BoxConstraints(
-              //                 minWidth: 10,
-              //                 minHeight: 10,
-              //               ),
-              //             ),
-              //           ),
-              //       ],
-              //     ),
-              //   ),
-              // ),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => Profile()),
-                  );
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Icon(Icons.person, size: 25, color: Colors.black),
-                ),
-              ),
-            ],
-          ),
+          appBar: CustomAppBar(title: 'Dashboard'),
           body:
               _isLoading
                   ? Center(child: SpinKitCircle(color: Colors.black))
@@ -345,6 +273,7 @@ class _DashboardState extends State<Dashboard> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
+                          //""
                           SizedBox(height: 10),
                           Text(
                             "Analyze your skin and get personalized recommendations.",
@@ -357,7 +286,7 @@ class _DashboardState extends State<Dashboard> {
                           SizedBox(height: 20),
                           CarouselSlider(
                             options: CarouselOptions(
-                              height: 200,
+                              height: 180,
                               autoPlay: true,
                               autoPlayInterval: Duration(seconds: 3),
                               enlargeCenterPage: true,
@@ -393,108 +322,229 @@ class _DashboardState extends State<Dashboard> {
                           ),
                           SizedBox(height: 15),
                           Padding(
-                            padding: const EdgeInsets.all(2.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      "Current Hydration",
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
+                            padding: const EdgeInsets.all(6.0),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.deepPurple.shade50,
+                                    Colors.deepPurple.shade100,
+                                    Colors.deepPurple.shade200,
                                   ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
                                 ),
-                                SizedBox(height: 20),
-                                Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    SizedBox(
-                                      height: 180,
-                                      width: 180,
-                                      child: PieChart(
-                                        PieChartData(
-                                          sectionsSpace: 0,
-                                          centerSpaceRadius: 60,
-                                          startDegreeOffset: -90,
-                                          sections: [
-                                            PieChartSectionData(
-                                              value: getPercentage(),
-                                              color: Colors.deepPurple.shade100,
-                                              radius: 28,
-                                              showTitle: false,
-                                            ),
-                                            PieChartSectionData(
-                                              value: 100 - getPercentage(),
-                                              color: Colors.blue.shade100,
-                                              radius: 22,
-                                              showTitle: false,
-                                            ),
-                                          ],
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              padding: const EdgeInsets.all(12.0),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Left: Hydration Pie Chart
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "Current Hydration",
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
                                         ),
                                       ),
-                                    ),
-                                    Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          "${getPercentage().toInt()}%",
-                                          style: TextStyle(
-                                            fontSize: 24,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.deepPurple,
+                                      SizedBox(height: 10),
+                                      Stack(
+                                        alignment: Alignment.center,
+                                        children: [
+                                          SizedBox(
+                                            height: 120, // Smaller size
+                                            width: 120,
+                                            child: PieChart(
+                                              PieChartData(
+                                                sectionsSpace: 0,
+                                                centerSpaceRadius: 40,
+                                                startDegreeOffset: -90,
+                                                sections: [
+                                                  PieChartSectionData(
+                                                    value: getPercentage(),
+                                                    color:
+                                                        Colors
+                                                            .deepPurple
+                                                            .shade200,
+                                                    radius: 20,
+                                                    showTitle: false,
+                                                  ),
+                                                  PieChartSectionData(
+                                                    value:
+                                                        100 - getPercentage(),
+                                                    color: Colors.blue.shade200,
+                                                    radius: 16,
+                                                    showTitle: false,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                        Text(
-                                          getPercentage() >= 75
-                                              ? "Hydrated"
-                                              : "Need Water",
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.grey.shade600,
+                                          Column(
+                                            children: [
+                                              Text(
+                                                "${getPercentage().toInt()}%",
+                                                style: TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.deepPurple,
+                                                ),
+                                              ),
+                                              Text(
+                                                getPercentage() >= 75
+                                                    ? "Hydrated"
+                                                    : "Need Water",
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.grey.shade600,
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(height: 20),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    _buildLegendColor(
-                                      Colors.deepPurple.shade100,
-                                      "Water Consumed",
-                                    ),
-                                    SizedBox(width: 16),
-                                    _buildLegendColor(
-                                      Colors.blue.shade100,
-                                      "Remaining",
-                                    ),
-                                  ],
-                                ),
-                                SizedBox(height: 10),
-                                Text(
-                                  getPercentage() >= 75
-                                      ? "Great job staying hydrated!"
-                                      : "Keep sipping! You're almost there.",
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontStyle: FontStyle.italic,
-                                    color: Colors.black87,
+                                        ],
+                                      ),
+                                      SizedBox(height: 10),
+                                      Row(
+                                        children: [
+                                          _buildLegendColor(
+                                            Colors.deepPurple.shade200,
+                                            "Consumed",
+                                          ),
+                                          SizedBox(width: 8),
+                                          _buildLegendColor(
+                                            Colors.blue.shade200,
+                                            "Remaining",
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
+
+                                  SizedBox(width: 16),
+                                  // Right: Slider Poster or Image
+                                  Expanded(
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.asset(
+                                        'assets/images/waterdrink.jpg', //
+                                        fit: BoxFit.cover,
+                                        height: 180,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                          SizedBox(height: 12),
+                          // Padding(
+                          //   padding: const EdgeInsets.all(2.0),
+                          //   child: Column(
+                          //     crossAxisAlignment: CrossAxisAlignment.center,
+                          //     children: [
+                          //       Row(
+                          //         children: [
+                          //           Text(
+                          //             "Current Hydration",
+                          //             style: TextStyle(
+                          //               fontSize: 18,
+                          //               fontWeight: FontWeight.bold,
+                          //             ),
+                          //           ),
+                          //         ],
+                          //       ),
+                          //       SizedBox(height: 20),
+                          //       Stack(
+                          //         alignment: Alignment.center,
+                          //         children: [
+                          //           SizedBox(
+                          //             height: 180,
+                          //             width: 180,
+                          //             child: PieChart(
+                          //               PieChartData(
+                          //                 sectionsSpace: 0,
+                          //                 centerSpaceRadius: 60,
+                          //                 startDegreeOffset: -90,
+                          //                 sections: [
+                          //                   PieChartSectionData(
+                          //                     value: getPercentage(),
+                          //                     color: Colors.deepPurple.shade100,
+                          //                     radius: 28,
+                          //                     showTitle: false,
+                          //                   ),
+                          //                   PieChartSectionData(
+                          //                     value: 100 - getPercentage(),
+                          //                     color: Colors.blue.shade100,
+                          //                     radius: 22,
+                          //                     showTitle: false,
+                          //                   ),
+                          //                 ],
+                          //               ),
+                          //             ),
+                          //           ),
+                          //           Column(
+                          //             mainAxisAlignment:
+                          //                 MainAxisAlignment.center,
+                          //             children: [
+                          //               Text(
+                          //                 "${getPercentage().toInt()}%",
+                          //                 style: TextStyle(
+                          //                   fontSize: 24,
+                          //                   fontWeight: FontWeight.bold,
+                          //                   color: Colors.deepPurple,
+                          //                 ),
+                          //               ),
+                          //               Text(
+                          //                 getPercentage() >= 75
+                          //                     ? "Hydrated"
+                          //                     : "Need Water",
+                          //                 style: TextStyle(
+                          //                   fontSize: 14,
+                          //                   color: Colors.grey.shade600,
+                          //                 ),
+                          //               ),
+                          //             ],
+                          //           ),
+                          //         ],
+                          //       ),
+                          //       SizedBox(height: 20),
+                          //       Row(
+                          //         mainAxisAlignment: MainAxisAlignment.center,
+                          //         children: [
+                          //           _buildLegendColor(
+                          //             Colors.deepPurple.shade100,
+                          //             "Water Consumed",
+                          //           ),
+                          //           SizedBox(width: 16),
+                          //           _buildLegendColor(
+                          //             Colors.blue.shade100,
+                          //             "Remaining",
+                          //           ),
+                          //         ],
+                          //       ),
+                          //       SizedBox(height: 10),
+                          //       Text(
+                          //         getPercentage() >= 75
+                          //             ? "Great job staying hydrated!"
+                          //             : "Keep sipping! You're almost there.",
+                          //         style: TextStyle(
+                          //           fontSize: 15,
+                          //           fontStyle: FontStyle.italic,
+                          //           color: Colors.black87,
+                          //         ),
+                          //         textAlign: TextAlign.center,
+                          //       ),
+                          //     ],
+                          //   ),
+                          // ),
+                          SizedBox(height: 8),
                           Padding(
-                            padding: const EdgeInsets.all(8.0),
+                            padding: const EdgeInsets.only(left: 8,right: 8 ,top: 8),
                             child: Row(
                               children: [
                                 Text(
@@ -507,77 +557,55 @@ class _DashboardState extends State<Dashboard> {
                               ],
                             ),
                           ),
-                          SizedBox(height: 10),
                           if (todaysReminders.isNotEmpty)
-                            Column(
-                              children:
-                                  todaysReminders.map((entry) {
-                                    DateTime reminderDate = entry.key;
-                                    String reminderText = entry.value;
-
-                                    return Card(
-                                      elevation: 4,
-                                      margin: EdgeInsets.symmetric(vertical: 6),
-                                      child: ListTile(
-                                        leading: FaIcon(
-                                          FontAwesomeIcons.stopwatch,
-                                          size: 20,
-                                          color: Colors.deepPurple,
-                                        ),
-                                        title: Text(reminderText),
-                                        trailing: IconButton(
-                                          icon: FaIcon(
-                                            FontAwesomeIcons.trashCan,
-                                            size: 18,
-                                            color: Colors.red,
+                            Padding(
+                              padding: const EdgeInsets.all(5.0),
+                              child: Column(
+                                children:
+                                    todaysReminders.map((entry) {
+                                      DateTime reminderDate = entry.key;
+                                      String reminderText = entry.value;
+                                      return Card(
+                                        elevation: 4,
+                                        margin: EdgeInsets.symmetric(vertical: 4),
+                                        child: ListTile(
+                                          leading:
+                                          CircleAvatar(
+                                            backgroundColor: Colors.deepPurple.shade100,
+                                            child: FaIcon(
+                                              FontAwesomeIcons.solidBell,
+                                              size: 16,
+                                              color: Colors.deepPurple,
+                                            ),
                                           ),
-                                          onPressed: () {
-                                            _removeReminder(
-                                              reminderDate,
-                                              reminderText,
-                                            );
-                                          },
+                                          title: Text(reminderText),
+                                          trailing: IconButton(
+                                            icon: FaIcon(
+                                              FontAwesomeIcons.trashCan,
+                                              size: 18,
+                                              color: Colors.red,
+                                            ),
+                                            onPressed: () {
+                                              _removeReminder(
+                                                reminderDate,
+                                                reminderText,
+                                              );
+                                            },
+                                          ),
                                         ),
-                                      ),
-                                    );
-                                  }).toList(),
+                                      );
+                                    }).toList(),
+                              ),
                             )
                           else
-                            Text(
-                              "No reminders for today!",
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          SizedBox(height: 15),
-                          // 🔹 Skincare Schedule Navigation
-                          Card(
-                            elevation: 4,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: ListTile(
-                              leading: Icon(
-                                Icons.calendar_month,
-                                color: Colors.deepPurple,
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8,right: 8,bottom: 15,top: 15),
+                              child: Text(
+                                "No reminders for today!",
+                                style: TextStyle(color: Colors.grey),
                               ),
-                              title: Text("Go to Skincare Schedule"),
-                              subtitle: Text(
-                                "Set reminders for your skincare routine",
-                              ),
-                              trailing: Icon(Icons.arrow_forward_ios),
-                              onTap: () async {
-                                // Navigate to Calendar Screen
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => CalendarScreen(),
-                                  ),
-                                );
-                                _loadReminders(); // Reload notifications after returning
-                                setState(() {});
-                              },
                             ),
-                          ),
-                          SizedBox(height: 15),
+                          SizedBox(height: 3),
                           Card(
                             elevation: 4,
                             shape: RoundedRectangleBorder(
@@ -654,7 +682,6 @@ class _DashboardState extends State<Dashboard> {
                               },
                             ),
                           ),
-
                           SizedBox(height: 80),
                         ],
                       ),
@@ -665,7 +692,6 @@ class _DashboardState extends State<Dashboard> {
     );
   }
 
-  // Helper widget to show legend
   Widget _buildLegendColor(Color color, String label) {
     return Row(
       children: [
