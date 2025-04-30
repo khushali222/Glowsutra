@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../widgets/custom_appbar.dart';
@@ -106,20 +107,48 @@ class _DashboardState extends State<Dashboard> {
   }
 
   Future<void> _removeReminder(DateTime date, String reminder) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> notificationsJson =
+        prefs.getStringList('unreadNotifications') ?? [];
+
+    List<String> updatedNotifications = [];
+    List<int> idsToCancel = [];
+
+    for (var jsonString in notificationsJson) {
+      final decoded = jsonDecode(jsonString);
+      if (decoded['reminder'] == reminder &&
+          decoded['date'] == DateFormat('yyyy-MM-dd').format(date)) {
+        idsToCancel.add(int.tryParse(decoded['id'] ?? '') ?? 0);
+      } else {
+        updatedNotifications.add(jsonString);
+      }
+    }
+
+    // Cancel the notifications associated with this reminder
+    for (var id in idsToCancel) {
+      await _notificationsPlugin.cancel(id);
+    }
+
+    // Update the unread notifications list in SharedPreferences
+    await prefs.setStringList('unreadNotifications', updatedNotifications);
+
     setState(() {
       _reminders[date]?.remove(reminder);
-      if (_reminders[date]?.isEmpty ?? true) {
-        _reminders.remove(date);
-      }
+      if (_reminders[date]?.isEmpty ?? true) _reminders.remove(date);
     });
 
-    final prefs = await SharedPreferences.getInstance();
-    Map<String, dynamic> encodedReminders = _reminders.map((key, value) {
-      return MapEntry(key.toIso8601String(), value);
-    });
+    // Save updated reminders in SharedPreferences
+    await prefs.setString(
+      'reminders',
+      jsonEncode(
+        _reminders.map((key, value) => MapEntry(key.toIso8601String(), value)),
+      ),
+    );
 
-    await prefs.setString('reminders', jsonEncode(encodedReminders));
+    // Now reload the reminders to reflect the updated data
+    await _loadReminders();
   }
+
 
   Future<void> _markNotificationAsRead(String? notification) async {
     if (notification != null) {
@@ -257,295 +286,364 @@ class _DashboardState extends State<Dashboard> {
         _loadWaterIntake();
         return Scaffold(
           appBar: CustomAppBar(title: 'Dashboard'),
-          body: _isLoading
-              ? Center(child: SpinKitCircle(color: Colors.black))
-              : SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: Column(
-                children: [
-                  SizedBox(height: 10),
-                  Text(
-                    "Welcome to Glow Sutra!",
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    "Analyze your skin and get personalized recommendations.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, color: Colors.black54),
-                  ),
-                  SizedBox(height: 20),
-
-                  // Carousel
-                  CarouselSlider(
-                    options: CarouselOptions(
-                      height: 180,
-                      autoPlay: true,
-                      autoPlayInterval: Duration(seconds: 3),
-                      enlargeCenterPage: true,
-                      enableInfiniteScroll: true,
-                      onPageChanged: (index, reason) {
-                        setState(() {
-                          activeIndex = index;
-                        });
-                      },
-                    ),
-                    items: imageUrls.map((url) {
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(15),
-                        child: Image.network(url, fit: BoxFit.cover, width: 1000),
-                      );
-                    }).toList(),
-                  ),
-                  SizedBox(height: 10),
-                  AnimatedSmoothIndicator(
-                    activeIndex: activeIndex,
-                    count: imageUrls.length,
-                    effect: ExpandingDotsEffect(
-                      dotHeight: 8,
-                      dotWidth: 8,
-                      activeDotColor: Colors.pink,
-                      dotColor: Colors.grey.shade300,
-                    ),
-                  ),
-                  SizedBox(height: 15),
-
-                  // Hydration Card
-                  Padding(
-                    padding: const EdgeInsets.only(left: 6,right: 6,),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.deepPurple.shade50,
-                            Colors.deepPurple.shade100,
-                            Colors.deepPurple.shade200,
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      padding: const EdgeInsets.all(12.0),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+          body:
+              _isLoading
+                  ? Center(child: SpinKitCircle(color: Colors.black))
+                  : SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(10.0),
+                      child: Column(
                         children: [
-                          // Pie Chart Section
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("Current Hydration",
-                                  style: TextStyle(
-                                      fontSize: 16, fontWeight: FontWeight.bold)),
-                              SizedBox(height: 10),
-                              Stack(
-                                alignment: Alignment.center,
+                          SizedBox(height: 10),
+                          Text(
+                            "Welcome to Glow Sutra!",
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 10),
+                          Text(
+                            "Analyze your skin and get personalized recommendations.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.black54,
+                            ),
+                          ),
+                          SizedBox(height: 20),
+
+                          // Carousel
+                          CarouselSlider(
+                            options: CarouselOptions(
+                              height: 180,
+                              autoPlay: true,
+                              autoPlayInterval: Duration(seconds: 3),
+                              enlargeCenterPage: true,
+                              enableInfiniteScroll: true,
+                              onPageChanged: (index, reason) {
+                                setState(() {
+                                  activeIndex = index;
+                                });
+                              },
+                            ),
+                            items:
+                                imageUrls.map((url) {
+                                  return ClipRRect(
+                                    borderRadius: BorderRadius.circular(15),
+                                    child: Image.network(
+                                      url,
+                                      fit: BoxFit.cover,
+                                      width: 1000,
+                                    ),
+                                  );
+                                }).toList(),
+                          ),
+                          SizedBox(height: 10),
+                          AnimatedSmoothIndicator(
+                            activeIndex: activeIndex,
+                            count: imageUrls.length,
+                            effect: ExpandingDotsEffect(
+                              dotHeight: 8,
+                              dotWidth: 8,
+                              activeDotColor: Colors.pink,
+                              dotColor: Colors.grey.shade300,
+                            ),
+                          ),
+                          SizedBox(height: 15),
+
+                          // Hydration Card
+                          Padding(
+                            padding: const EdgeInsets.only(left: 6, right: 6),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Colors.deepPurple.shade50,
+                                    Colors.deepPurple.shade100,
+                                    Colors.deepPurple.shade200,
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              padding: const EdgeInsets.all(12.0),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  SizedBox(
-                                    height: 125,
-                                    width: 125,
-                                    child: PieChart(
-                                      PieChartData(
-                                        sectionsSpace: 0,
-                                        centerSpaceRadius: 40,
-                                        startDegreeOffset: -90,
-                                        sections: [
-                                          PieChartSectionData(
-                                            value: getPercentage(),
-                                            color: Colors.deepPurple.shade200,
-                                            radius: 20,
-                                            showTitle: false,
+                                  // Pie Chart Section
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "Current Hydration",
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      SizedBox(height: 10),
+                                      Stack(
+                                        alignment: Alignment.center,
+                                        children: [
+                                          SizedBox(
+                                            height: 125,
+                                            width: 125,
+                                            child: PieChart(
+                                              PieChartData(
+                                                sectionsSpace: 0,
+                                                centerSpaceRadius: 40,
+                                                startDegreeOffset: -90,
+                                                sections: [
+                                                  PieChartSectionData(
+                                                    value: getPercentage(),
+                                                    color:
+                                                        Colors
+                                                            .deepPurple
+                                                            .shade200,
+                                                    radius: 20,
+                                                    showTitle: false,
+                                                  ),
+                                                  PieChartSectionData(
+                                                    value:
+                                                        100 - getPercentage(),
+                                                    color: Colors.blue.shade200,
+                                                    radius: 16,
+                                                    showTitle: false,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
                                           ),
-                                          PieChartSectionData(
-                                            value: 100 - getPercentage(),
-                                            color: Colors.blue.shade200,
-                                            radius: 16,
-                                            showTitle: false,
+                                          Column(
+                                            children: [
+                                              Text(
+                                                "${getPercentage().toInt()}%",
+                                                style: TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.deepPurple,
+                                                ),
+                                              ),
+                                              Text(
+                                                getPercentage() >= 75
+                                                    ? "Hydrated"
+                                                    : "Need Water",
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.grey.shade600,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
-                                    ),
-                                  ),
-                                  Column(
-                                    children: [
-                                      Text("${getPercentage().toInt()}%",
-                                          style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.deepPurple)),
-                                      Text(
-                                        getPercentage() >= 75
-                                            ? "Hydrated"
-                                            : "Need Water",
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.grey.shade600,
-                                        ),
+                                      SizedBox(height: 10),
+                                      Row(
+                                        children: [
+                                          _buildLegendColor(
+                                            Colors.deepPurple.shade200,
+                                            "Consumed",
+                                          ),
+                                          SizedBox(width: 8),
+                                          _buildLegendColor(
+                                            Colors.blue.shade200,
+                                            "Remaining",
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                ],
-                              ),
-                              SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  _buildLegendColor(Colors.deepPurple.shade200,
-                                      "Consumed"),
-                                  SizedBox(width: 8),
-                                  _buildLegendColor(Colors.blue.shade200,
-                                      "Remaining"),
-                                ],
-                              ),
-                            ],
-                          ),
 
-                          SizedBox(width: 16),
+                                  SizedBox(width: 16),
 
-                          // Poster Section
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.asset(
-                                'assets/images/waterdrink.jpg',
-                                fit: BoxFit.cover,
-                                height: 180,
+                                  // Poster Section
+                                  Expanded(
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.asset(
+                                        'assets/images/waterdrink.jpg',
+                                        fit: BoxFit.cover,
+                                        height: 180,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
+
+                          // Today's Reminder Header
+                          SizedBox(height: 20),
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              left: 6,
+                              right: 6,
+                              bottom: 8,
+                            ),
+                            child: Row(
+                              children: [
+                                Text(
+                                  "Today's Reminders",
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Reminder Cards
+                          if (todaysReminders.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 6, right: 6),
+                              child: Column(
+                                children:
+                                    todaysReminders.map((entry) {
+                                      DateTime reminderDate = entry.key;
+                                      String reminderText = entry.value;
+                                      return Container(
+                                        margin: EdgeInsets.symmetric(
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Colors.white,
+                                              Colors.white,
+                                              // Colors.deepPurple.shade100,
+                                              // Colors.deepPurple.shade50,
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.deepPurple.shade100
+                                                  .withOpacity(0.4),
+                                              blurRadius: 4,
+                                              offset: Offset(2, 4),
+                                            ),
+                                          ],
+                                        ),
+                                        child: ListTile(
+                                          leading: CircleAvatar(
+                                            backgroundColor:
+                                                Colors.deepPurple.shade200,
+                                            child: FaIcon(
+                                              FontAwesomeIcons.solidBell,
+                                              size: 16,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          title: Text(
+                                            reminderText,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          trailing: IconButton(
+                                            icon: FaIcon(
+                                              FontAwesomeIcons.trashCan,
+                                              size: 18,
+                                              color: Colors.red,
+                                            ),
+                                            onPressed: () async {
+                                            await  _removeReminder(
+                                                reminderDate,
+                                                reminderText,
+                                              );
+
+                                            },
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                              ),
+                            )
+                          else
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 15),
+                              child: Text(
+                                "No reminders for today!",
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ),
+
+                          SizedBox(height: 8),
+                          // Feature Cards Grid
+                          Padding(
+                            padding: const EdgeInsets.all(6.0),
+                            child: GridView.count(
+                              shrinkWrap: true,
+                              physics: NeverScrollableScrollPhysics(),
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: 3 / 2,
+                              children: [
+                                _dashboardCard(
+                                  title: "Water Intake",
+                                  subtitle: "Hydration schedule",
+                                  icon: Icons.water_drop,
+                                  onTap: () async {
+                                    await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (context) => WaterIntakeScreen(),
+                                      ),
+                                    );
+                                    _loadWaterIntake();
+                                    setState(() {});
+                                  },
+                                ),
+                                _dashboardCard(
+                                  title: "Skincare Tips",
+                                  subtitle: "Personalized advice",
+                                  icon: Icons.face_retouching_natural,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => Skincaretips(),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                _dashboardCard(
+                                  title: "Home Remedies",
+                                  subtitle: "Natural skincare",
+                                  icon: Icons.spa,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => homeRemedies(),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: 80),
                         ],
                       ),
                     ),
                   ),
-
-                  // Today's Reminder Header
-                  SizedBox(height: 20),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 6,right: 6,bottom: 8),
-                    child: Row(
-                      children: [
-                        Text("Today's Reminders",
-                            style: TextStyle(
-                                fontSize: 17, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-
-                  // Reminder Cards
-                  if (todaysReminders.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 6,right: 6,),
-                      child: Column(
-                        children: todaysReminders.map((entry) {
-                          DateTime reminderDate = entry.key;
-                          String reminderText = entry.value;
-                          return Container(
-                            margin: EdgeInsets.symmetric(vertical: 6),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.white,
-                                  Colors.white
-                                  // Colors.deepPurple.shade100,
-                                  // Colors.deepPurple.shade50,
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.deepPurple.shade100.withOpacity(0.4),
-                                  blurRadius: 4,
-                                  offset: Offset(2, 4),
-                                ),
-                              ],
-                            ),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: Colors.deepPurple.shade200,
-                                child: FaIcon(FontAwesomeIcons.solidBell,
-                                    size: 16, color: Colors.white),
-                              ),
-                              title: Text(reminderText,
-                                  style: TextStyle(fontWeight: FontWeight.w600)),
-                              trailing: IconButton(
-                                icon: FaIcon(FontAwesomeIcons.trashCan,
-                                    size: 18, color: Colors.red),
-                                onPressed: () {
-                                  _removeReminder(reminderDate, reminderText);
-                                },
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    )
-                  else
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 15),
-                      child: Text("No reminders for today!",
-                          style: TextStyle(color: Colors.grey)),
-                    ),
-
-                  SizedBox(height: 8),
-                  // Feature Cards Grid
-                  Padding(
-                    padding: const EdgeInsets.all(6.0),
-                    child: GridView.count(
-                      shrinkWrap: true,
-                      physics: NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 3 / 2,
-                      children: [
-                        _dashboardCard(
-                          title: "Water Intake",
-                          subtitle: "Hydration schedule",
-                          icon: Icons.water_drop,
-                          onTap: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => WaterIntakeScreen()),
-                            );
-                            _loadWaterIntake();
-                            setState(() {});
-                          },
-                        ),
-                        _dashboardCard(
-                          title: "Skincare Tips",
-                          subtitle: "Personalized advice",
-                          icon: Icons.face_retouching_natural,
-                          onTap: () {
-                            Navigator.push(context,
-                                MaterialPageRoute(builder: (context) => Skincaretips()));
-                          },
-                        ),
-                        _dashboardCard(
-                          title: "Home Remedies",
-                          subtitle: "Natural skincare",
-                          icon: Icons.spa,
-                          onTap: () {
-                            Navigator.push(context,
-                                MaterialPageRoute(builder: (context) => homeRemedies()));
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: 80),
-                ],
-              ),
-            ),
-          ),
         );
-
       },
     );
   }
+
   Widget _dashboardCard({
     required String title,
     required String subtitle,
@@ -557,10 +655,7 @@ class _DashboardState extends State<Dashboard> {
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Colors.deepPurple.shade100,
-              Colors.deepPurple.shade50,
-            ],
+            colors: [Colors.deepPurple.shade100, Colors.deepPurple.shade50],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -580,8 +675,10 @@ class _DashboardState extends State<Dashboard> {
             Icon(icon, size: 30, color: Colors.deepPurple),
             SizedBox(height: 10),
             Text(title, style: TextStyle(fontWeight: FontWeight.bold)),
-            Text(subtitle,
-                style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+            Text(
+              subtitle,
+              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+            ),
           ],
         ),
       ),

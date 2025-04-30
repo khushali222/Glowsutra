@@ -9,7 +9,7 @@ void main() async {
   await Firebase.initializeApp();
 
   runApp(
-    // MyApp(),
+    //MyApp(),
     DevicePreview(
       enabled: true,
       tools: [...DevicePreview.defaultTools],
@@ -34,10 +34,9 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      theme: ThemeData(
-        fontFamily: 'Poppins'
-      ),
-        debugShowCheckedModeBanner: false, home: SplashScreen()
+      theme: ThemeData(fontFamily: 'Poppins'),
+      debugShowCheckedModeBanner: false,
+      home: SplashScreen(),
     );
   }
 }

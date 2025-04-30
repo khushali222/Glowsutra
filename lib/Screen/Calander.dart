@@ -90,19 +90,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
     String repeatType = "daily",
   }) async
   {
-    // Request permissions for notifications and exact alarms
     await _requestPermissions();
 
-    // If the scheduled time is in the past, return early
-    if (scheduledTime.isBefore(DateTime.now())) {
-      print("Scheduled time is in the past: $scheduledTime");
-      return;
-    }
+    if (scheduledTime.isBefore(DateTime.now())) return;
 
-    // Initialize time zones (ensure this is done before scheduling notifications)
     tz.initializeTimeZones();
 
-    // Android notification details
     final androidDetails = AndroidNotificationDetails(
       'reminder_channel',
       'Reminders',
@@ -122,58 +115,33 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     final details = NotificationDetails(android: androidDetails);
 
-    // Unique ID generation for each notification
     final id =
         (reminder.hashCode ^ scheduledTime.millisecondsSinceEpoch) & 0x7FFFFFFF;
 
-    try {
-      // Ensure exact alarm permission is granted (fallback to inexact if not)
-      bool canScheduleExact = await Permission.scheduleExactAlarm.isGranted;
+    bool canScheduleExact = await Permission.scheduleExactAlarm.isGranted;
 
-      await _notificationsPlugin.zonedSchedule(
-        id,
-        'Skincare Reminder',
-        reminder,
-        tz.TZDateTime.from(scheduledTime, tz.local),
-        details,
-        androidScheduleMode:
-            canScheduleExact
-                ? AndroidScheduleMode.exactAllowWhileIdle
-                : AndroidScheduleMode.inexactAllowWhileIdle,
-        matchDateTimeComponents:
-            isRepeating
-                ? (repeatType == "daily"
-                    ? DateTimeComponents.time
-                    : repeatType == "weekly"
-                    ? DateTimeComponents.dayOfWeekAndTime
-                    : DateTimeComponents.dayOfMonthAndTime)
-                : null,
-      );
+    await _notificationsPlugin.zonedSchedule(
+      id,
+      'Skincare Reminder',
+      reminder,
+      tz.TZDateTime.from(scheduledTime, tz.local),
+      details,
+      androidScheduleMode:
+          canScheduleExact
+              ? AndroidScheduleMode.exactAllowWhileIdle
+              : AndroidScheduleMode.inexactAllowWhileIdle,
+      matchDateTimeComponents:
+          isRepeating
+              ? (repeatType == "daily"
+                  ? DateTimeComponents.time
+                  : repeatType == "weekly"
+                  ? DateTimeComponents.dayOfWeekAndTime
+                  : DateTimeComponents.dayOfMonthAndTime)
+              : null,
+      payload: "$reminder|$id",
+    );
 
-      print("Scheduled notification successfully at $scheduledTime");
-    } catch (e) {
-      // Handle any errors while scheduling the notification
-      print("Error scheduling notification: $e");
-
-      await _notificationsPlugin.zonedSchedule(
-        id,
-        'Skincare Reminder',
-        reminder,
-        tz.TZDateTime.from(scheduledTime, tz.local),
-        details,
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        matchDateTimeComponents:
-            isRepeating
-                ? (repeatType == "daily"
-                    ? DateTimeComponents.time
-                    : repeatType == "weekly"
-                    ? DateTimeComponents.dayOfWeekAndTime
-                    : DateTimeComponents.dayOfMonthAndTime)
-                : null,
-      );
-    }
-
-    _saveNotificationWhenTimeArrives(reminder, scheduledTime);
+    _saveNotificationWhenTimeArrives(reminder, scheduledTime, id);
   }
 
   // Future<void> _scheduleNotification(
@@ -227,36 +195,33 @@ class _CalendarScreenState extends State<CalendarScreen> {
   // }
 
   void _saveNotificationWhenTimeArrives(
-    String reminder,
-    DateTime scheduledTime,
-  ) {
+      String reminder,
+      DateTime scheduledTime,
+      int id,
+      ) async
+  {
     Duration delay = scheduledTime.difference(DateTime.now());
     if (delay.isNegative) return;
 
-    Future.delayed(delay, () async {
-      final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
+    List<String> notificationsJson = prefs.getStringList('unreadNotifications') ?? [];
 
-      List<String> notificationsJson =
-          prefs.getStringList('unreadNotifications') ?? [];
+    String formattedTime =
+        "${scheduledTime.hour % 12 == 0 ? 12 : scheduledTime.hour % 12}:${scheduledTime.minute.toString().padLeft(2, '0')} ${scheduledTime.hour >= 12 ? "PM" : "AM"}";
+    String formattedDate = DateFormat('yyyy-MM-dd').format(scheduledTime);
 
-      String formattedTime =
-          "${scheduledTime.hour % 12 == 0 ? 12 : scheduledTime.hour % 12}:${scheduledTime.minute.toString().padLeft(2, '0')} ${scheduledTime.hour >= 12 ? "PM" : "AM"}";
-      String formattedDate = DateFormat('yyyy-MM-dd').format(scheduledTime);
+    Map<String, String> notificationMap = {
+      "reminder": reminder,
+      "time": formattedTime,
+      "date": formattedDate,
+      "payload": scheduledTime.toString(),
+      "id": id.toString(),
+    };
 
-      Map<String, String> notificationMap = {
-        "reminder": reminder,
-        "time": formattedTime,
-        "date": formattedDate,
-        "payload": scheduledTime.toString(),
-      };
+    notificationsJson.add(jsonEncode(notificationMap));
+    await prefs.setStringList('unreadNotifications', notificationsJson);
 
-      notificationsJson.add(jsonEncode(notificationMap));
-      await prefs.setStringList('unreadNotifications', notificationsJson);
-
-      print("✅ Saved notification: $notificationMap");
-
-      if (mounted) setState(() {});
-    });
+    if (mounted) setState(() {});
   }
 
   Future<void> _togglePresetReminder(String reminder, String planType) async {
@@ -428,21 +393,39 @@ class _CalendarScreenState extends State<CalendarScreen> {
         )
         .toList();
   }
-
   Future<void> _removeReminder(DateTime date, String reminder) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> notificationsJson = prefs.getStringList('unreadNotifications') ?? [];
+
+    List<String> updatedNotifications = [];
+    List<int> idsToCancel = [];
+
+    for (var jsonString in notificationsJson) {
+      final decoded = jsonDecode(jsonString);
+      if (decoded['reminder'] == reminder && decoded['date'] == DateFormat('yyyy-MM-dd').format(date)) {
+        idsToCancel.add(int.tryParse(decoded['id'] ?? '') ?? 0);
+      } else {
+        updatedNotifications.add(jsonString);
+      }
+    }
+
+    for (var id in idsToCancel) {
+      await _notificationsPlugin.cancel(id);
+    }
+
+    await prefs.setStringList('unreadNotifications', updatedNotifications);
+
     setState(() {
       _reminders[date]?.remove(reminder);
       if (_reminders[date]?.isEmpty ?? true) _reminders.remove(date);
     });
 
-    final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
       'reminders',
-      jsonEncode(
-        _reminders.map((key, value) => MapEntry(key.toIso8601String(), value)),
-      ),
+      jsonEncode(_reminders.map((key, value) => MapEntry(key.toIso8601String(), value))),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
