@@ -12,6 +12,9 @@ import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:uuid/uuid.dart';
 
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
 @pragma('vm:entry-point')
 Future<void> notificationTapBackground(
   NotificationResponse notificationResponse,
@@ -25,7 +28,7 @@ Future<void> notificationTapBackground(
   print("Payload: $payload");
   final prefs = await SharedPreferences.getInstance();
   // Add logic based on the action ID
-
+  tz.initializeTimeZones();
   if (actionId == 'ok_action') {
     try {
       final deviceId =
@@ -81,9 +84,35 @@ Future<void> notificationTapBackground(
     } catch (e) {
       print("Error updating water glasses: $e");
     }
-  } else if (actionId == 'cancel_action') {
-    print("User tapped Cancel action");
-    // Handle Cancel action (e.g., dismiss reminder)
+  } else if (actionId == 'snooze_action') {
+    print("notification snooze tapped");
+    final now = DateTime.now().add(Duration(minutes: 5));
+    final androidDetails = AndroidNotificationDetails(
+      'water_reminder_channel',
+      'Water Reminder',
+      channelDescription: 'Reminds you to drink water',
+      importance: Importance.high,
+      priority: Priority.high,
+      actions: [
+        AndroidNotificationAction('ok_action', 'OK'),
+        AndroidNotificationAction('snooze_action', 'Snooze'),
+      ],
+    );
+
+    final notificationDetails = NotificationDetails(android: androidDetails);
+
+    await flutterLocalNotificationsPlugin.zonedSchedule(
+      now.millisecondsSinceEpoch ~/ 1000, // unique ID
+      'Time to drink water!',
+      'This is your snoozed reminder!',
+      tz.TZDateTime.from(now, tz.local),
+      notificationDetails,
+      payload: 'Snoozed notification',
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+
+    print("Snoozed notification scheduled for: $now");
   } else {
     print("User tapped the notification body.");
   }
@@ -133,8 +162,8 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     with WidgetsBindingObserver {
   int totalGlasses = 0;
   final int targetGlasses = 8; // 1 glass = 250ml, 8 glasses = 2000ml
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
+  // final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+  //     FlutterLocalNotificationsPlugin();
 
   bool notificationsEnabled = false;
   String selectedReminder = "None"; // Default: No reminders
@@ -264,10 +293,38 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
             currentGlasses = 8;
           }
           //  await prefs.setInt('water_glasses', currentGlasses);
-        } else if (actionId == 'cancel_action') {
-          // User tapped Cancel
-          print("User dismissed water reminder.");
-          // Optional: log skipped time, or take no action
+        } else if (actionId == 'snooze_action') {
+          final now = DateTime.now().add(Duration(minutes: 5));
+
+          final androidDetails = AndroidNotificationDetails(
+            'water_reminder_channel',
+            'Water Reminder',
+            channelDescription: 'Reminds you to drink water',
+            importance: Importance.high,
+            priority: Priority.high,
+            actions: [
+              AndroidNotificationAction('ok_action', 'OK'),
+              AndroidNotificationAction('snooze_action', 'Snooze'),
+            ],
+          );
+
+          final notificationDetails = NotificationDetails(
+            android: androidDetails,
+          );
+
+          await flutterLocalNotificationsPlugin.zonedSchedule(
+            now.millisecondsSinceEpoch ~/ 1000, // unique ID
+            'Time to drink water!',
+            'This is your snoozed reminder!',
+            tz.TZDateTime.from(now, tz.local),
+            notificationDetails,
+            payload: 'Snoozed notification',
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            matchDateTimeComponents:
+                DateTimeComponents.time, // optional, depends on your use case
+          );
+
+          print("Snoozed notification scheduled for: $now");
         } else {
           // User tapped the notification body
           print("Notification tapped (not a button).");
@@ -376,9 +433,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     // flutterLocalNotificationsPlugin.cancelAll();
 
     final List<int> reminderHours = [
-      10,
-      11,
-      12,
+      8, 10, 12, 14, 16, 18, 20, 22,
       // 14,
       // 15,
       // 16,
@@ -403,7 +458,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
       // 12,
       // 13,
       // 14,
-      15,
+      // 15,
       // 16,
       // 17,
       // 18,
@@ -418,22 +473,22 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
       // 27,
       // 28,
       // 29,
-      30,
+      // 30,
       // 31,
       // 32,
       // 33,
-      // 34,
+      //34,
       // 35,
       // 36,
       // 37,
       // 38,
       // 39,
-      // 40,
+      //40,
       // 41,
-      // 42,
+      //42,
       // 43,
       // 44,
-      45,
+      //45,
       // 46,
       // 47,
       // 48,
@@ -537,7 +592,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
           priority: Priority.high,
           actions: [
             AndroidNotificationAction('ok_action', 'OK'),
-            AndroidNotificationAction('cancel_action', 'Cancel'),
+            AndroidNotificationAction('snooze_action', 'Snooze'),
           ],
         );
 
