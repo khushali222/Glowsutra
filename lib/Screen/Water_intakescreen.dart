@@ -376,79 +376,79 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     // flutterLocalNotificationsPlugin.cancelAll();
 
     final List<int> reminderHours = [
-      11,
-      12,
-      13,
-      14,
-      15,
-      16,
-      17,
-      18,
-      19,
-      21,
-      22,
-    ];
-    final List<int> reminderMinutes = [
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8,
-      9,
       10,
       11,
       12,
-      13,
-      14,
+      // 14,
+      // 15,
+      // 16,
+      // 17,
+      // 18,
+      // 19,
+      // 21,
+      // 22,
+    ];
+    final List<int> reminderMinutes = [
+      0,
+      // 2,
+      // 3,
+      // 4,
+      // 5,
+      // 6,
+      // 7,
+      // 8,
+      // 9,
+      // 10,
+      // 11,
+      // 12,
+      // 13,
+      // 14,
       15,
-      16,
-      17,
-      18,
-      19,
-      20,
-      21,
-      22,
-      23,
-      24,
-      25,
-      26,
-      27,
-      28,
-      29,
+      // 16,
+      // 17,
+      // 18,
+      // 19,
+      // 20,
+      // 21,
+      // 22,
+      // 23,
+      // 24,
+      // 25,
+      // 26,
+      // 27,
+      // 28,
+      // 29,
       30,
-      31,
-      32,
-      33,
-      34,
-      35,
-      36,
-      37,
-      38,
-      39,
-      40,
-      41,
-      42,
-      43,
-      44,
+      // 31,
+      // 32,
+      // 33,
+      // 34,
+      // 35,
+      // 36,
+      // 37,
+      // 38,
+      // 39,
+      // 40,
+      // 41,
+      // 42,
+      // 43,
+      // 44,
       45,
-      46,
-      47,
-      48,
-      49,
-      50,
-      51,
-      52,
-      53,
-      54,
-      55,
-      56,
-      57,
-      58,
-      59,
-      60,
+      // 46,
+      // 47,
+      // 48,
+      // 49,
+      // 50,
+      // 51,
+      // 52,
+      // 53,
+      // 54,
+      // 55,
+      // 56,
+      // 57,
+      // 58,
+      // 59,
+      // 60,
     ]; // You can change this to [0, 30] or others for more
 
     for (int day = 0; day < days; day++) {
@@ -461,15 +461,29 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
   }
 
   Future<void> _requestPermissions() async {
-    // Request notifications permission
-    if (await Permission.notification.isDenied) {
-      await Permission.notification.request();
-    }
+    try {
+      // Request notifications permission (wait until it is finished)
+      if (await Permission.notification.isDenied) {
+        PermissionStatus notificationPermissionStatus =
+            await Permission.notification.request();
+        if (!notificationPermissionStatus.isGranted) {
+          print('Notification permission denied');
+        }
+      }
 
-    // Request exact alarm permission (for scheduling notifications at exact times)
-    if (await Permission.scheduleExactAlarm.isDenied ||
-        await Permission.scheduleExactAlarm.isPermanentlyDenied) {
-      await openAppSettings(); // This opens the settings for the user to enable permissions manually
+      // Request exact alarm permission (for scheduling notifications at exact times)
+      if (await Permission.scheduleExactAlarm.isDenied ||
+          await Permission.scheduleExactAlarm.isPermanentlyDenied) {
+        PermissionStatus alarmPermissionStatus =
+            await Permission.scheduleExactAlarm.request();
+        if (!alarmPermissionStatus.isGranted) {
+          print('Exact alarm permission denied');
+          // Optionally, open app settings if permission is denied
+          await openAppSettings();
+        }
+      }
+    } catch (e) {
+      print('Error requesting permissions: $e');
     }
   }
 
@@ -477,8 +491,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     int dayOffset,
     int hour,
     int minute,
-  ) async
-  {
+  ) async {
     final now = DateTime.now();
     DateTime scheduledTime = DateTime(
       now.year,
@@ -551,6 +564,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
         tz.TZDateTime.from(scheduledTime, tz.local),
         notificationDetails,
         payload: scheduledTime.toString(),
+        //androidScheduleMode: AndroidScheduleMode.alarmClock,
         androidScheduleMode:
             canScheduleExact
                 ? AndroidScheduleMode.exactAllowWhileIdle

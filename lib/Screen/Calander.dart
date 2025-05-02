@@ -88,8 +88,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     DateTime scheduledTime, {
     bool isRepeating = false,
     String repeatType = "daily",
-  }) async
-  {
+  }) async {
     await _requestPermissions();
 
     if (scheduledTime.isBefore(DateTime.now())) return;
@@ -140,7 +139,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
               : null,
       payload: "$reminder|$id",
     );
-
     _saveNotificationWhenTimeArrives(reminder, scheduledTime, id);
   }
 
@@ -195,16 +193,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
   // }
 
   void _saveNotificationWhenTimeArrives(
-      String reminder,
-      DateTime scheduledTime,
-      int id,
-      ) async
-  {
+    String reminder,
+    DateTime scheduledTime,
+    int id,
+  ) async {
     Duration delay = scheduledTime.difference(DateTime.now());
     if (delay.isNegative) return;
 
     final prefs = await SharedPreferences.getInstance();
-    List<String> notificationsJson = prefs.getStringList('unreadNotifications') ?? [];
+    List<String> notificationsJson =
+        prefs.getStringList('unreadNotifications') ?? [];
 
     String formattedTime =
         "${scheduledTime.hour % 12 == 0 ? 12 : scheduledTime.hour % 12}:${scheduledTime.minute.toString().padLeft(2, '0')} ${scheduledTime.hour >= 12 ? "PM" : "AM"}";
@@ -393,16 +391,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
         )
         .toList();
   }
+
   Future<void> _removeReminder(DateTime date, String reminder) async {
     final prefs = await SharedPreferences.getInstance();
-    List<String> notificationsJson = prefs.getStringList('unreadNotifications') ?? [];
+    List<String> notificationsJson =
+        prefs.getStringList('unreadNotifications') ?? [];
 
     List<String> updatedNotifications = [];
     List<int> idsToCancel = [];
 
     for (var jsonString in notificationsJson) {
       final decoded = jsonDecode(jsonString);
-      if (decoded['reminder'] == reminder && decoded['date'] == DateFormat('yyyy-MM-dd').format(date)) {
+      if (decoded['reminder'] == reminder &&
+          decoded['date'] == DateFormat('yyyy-MM-dd').format(date)) {
         idsToCancel.add(int.tryParse(decoded['id'] ?? '') ?? 0);
       } else {
         updatedNotifications.add(jsonString);
@@ -422,10 +423,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     await prefs.setString(
       'reminders',
-      jsonEncode(_reminders.map((key, value) => MapEntry(key.toIso8601String(), value))),
+      jsonEncode(
+        _reminders.map((key, value) => MapEntry(key.toIso8601String(), value)),
+      ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {

@@ -258,7 +258,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
     return precautions;
   }
 
-  /// 📌 Preprocess image for all models
+  // Preprocess image for all models
   List<List<List<List<double>>>> _preprocessImage(Uint8List imgBytes) {
     img.Image image = img.decodeImage(imgBytes)!;
     img.Image resizedImage = img.copyResize(image, width: 150, height: 150);
@@ -655,7 +655,6 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
     _skinTypeInterpreter?.close();
     _skinToneInterpreter?.close();
     _faceDetector?.close();
-
     super.dispose();
   }
 }

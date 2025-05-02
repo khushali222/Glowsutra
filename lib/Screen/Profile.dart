@@ -56,7 +56,6 @@ class _ProfileState extends State<Profile> {
         title: Text("Skincare Profile"),
         backgroundColor: Colors.deepPurple[100],
       ),
-
       body:
           _isLoading
               ? Center(child: SpinKitCircle(color: Colors.black))
