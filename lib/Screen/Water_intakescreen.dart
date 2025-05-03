@@ -18,7 +18,8 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 @pragma('vm:entry-point')
 Future<void> notificationTapBackground(
   NotificationResponse notificationResponse,
-) async {
+) async
+{
   await Firebase.initializeApp();
   final String? actionId = notificationResponse.actionId;
   final String? payload = notificationResponse.payload;
@@ -84,7 +85,8 @@ Future<void> notificationTapBackground(
     } catch (e) {
       print("Error updating water glasses: $e");
     }
-  } else if (actionId == 'snooze_action') {
+  }
+  else if (actionId == 'snooze_action') {
     print("notification snooze tapped");
     final now = DateTime.now().add(Duration(minutes: 5));
     final androidDetails = AndroidNotificationDetails(
@@ -113,7 +115,8 @@ Future<void> notificationTapBackground(
     );
 
     print("Snoozed notification scheduled for: $now");
-  } else {
+  }
+  else {
     print("User tapped the notification body.");
   }
 }
@@ -433,7 +436,11 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     // flutterLocalNotificationsPlugin.cancelAll();
 
     final List<int> reminderHours = [
-      8, 10, 12, 14, 16, 18, 20, 22,
+      9,
+      10,
+      11,
+      12,
+      13, 14, 15, 16, 17, 18, 19, 20, 21,
       // 14,
       // 15,
       // 16,
@@ -458,7 +465,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
       // 12,
       // 13,
       // 14,
-      // 15,
+      //15,
       // 16,
       // 17,
       // 18,
@@ -473,7 +480,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
       // 27,
       // 28,
       // 29,
-      // 30,
+      //30,
       // 31,
       // 32,
       // 33,
@@ -481,9 +488,9 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
       // 35,
       // 36,
       // 37,
-      // 38,
+      //38,
       // 39,
-      //40,
+      // 40,
       // 41,
       //42,
       // 43,

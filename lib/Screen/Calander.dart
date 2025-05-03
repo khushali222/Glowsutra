@@ -88,7 +88,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
     DateTime scheduledTime, {
     bool isRepeating = false,
     String repeatType = "daily",
-  }) async {
+  }) async
+  {
     await _requestPermissions();
 
     if (scheduledTime.isBefore(DateTime.now())) return;

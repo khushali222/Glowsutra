@@ -14,7 +14,7 @@
 
 
     <application
-        android:label="glow_sutra"
+        android:label="Glow Sutra"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

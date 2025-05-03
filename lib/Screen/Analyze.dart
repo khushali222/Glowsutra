@@ -215,7 +215,8 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
     String acneStatus,
     String skinTone,
     String wrinkleStatus,
-  ) {
+  )
+  {
     String precautions = "Skin Care Tips: \n";
 
     // Tips based on skin type
@@ -328,9 +329,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
       highlightColor: Colors.white,
       child: Padding(
         padding: const EdgeInsets.only(top: 15),
-        child: Container(
-
-            height: 200, width: 200, color: Colors.grey),
+        child: Container(height: 200, width: 200, color: Colors.grey),
       ),
     );
   }
@@ -377,7 +376,6 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
         title: Text("Skin Analyzer"),
         backgroundColor: Colors.deepPurple[100],
       ),
-
       body:
           _isloading
               ? SpinKitCircle(color: Colors.black)
@@ -546,7 +544,6 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
                             ],
                           ),
                         ),
-
                     SizedBox(height: 70),
                   ],
                 ),
