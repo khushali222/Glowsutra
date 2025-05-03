@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'home.dart';
@@ -15,6 +16,56 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _controller;
   late Animation<double> _opacityAnimation;
   late Animation<double> _scaleAnimation;
+
+  Future<void> resetIfNeeded() async {
+    print("caliing reset");
+    final prefs = await SharedPreferences.getInstance();
+    final lastUpdatedString = prefs.getString('last_updated');
+    final now = DateTime.now();
+    bool shouldReset = false;
+
+    if (lastUpdatedString != null) {
+      final lastUpdated = DateTime.tryParse(lastUpdatedString);
+
+      if (lastUpdated != null) {
+        final lastUpdatedDate = DateTime(
+          lastUpdated.year,
+          lastUpdated.month,
+          lastUpdated.day,
+        );
+        final currentDate = DateTime(now.year, now.month, now.day);
+
+        if (lastUpdatedDate != currentDate) {
+          shouldReset = true;
+        }
+      } else {
+        shouldReset = true;
+      }
+    } else {
+      shouldReset = true;
+    }
+
+    if (shouldReset) {
+      await prefs.setInt('water_glasses', 0);
+      await prefs.setString('last_updated', now.toIso8601String());
+      print("Resetting water glasses count because a new day has started.");
+      final deviceId = prefs.getString('device_id') ?? "unknown_device_id";
+      print("device id splash $deviceId");
+      try {
+        await FirebaseFirestore.instance
+            .collection("User")
+            .doc("fireid") // Replace with actual user doc if needed
+            .collection("waterGlasess")
+            .doc(deviceId)
+            .update({'glasscount': 0, 'lastUpdated': Timestamp.now()});
+        print("Firebase glasscount reset to 0.");
+      } catch (e) {
+        print("Failed to update Firebase: $e");
+      }
+    } else {
+      print("No reset needed (still within the same day).");
+    }
+  }
 
   @override
   void initState() {
@@ -40,7 +91,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Start the animation
     _controller.forward();
-
+    resetIfNeeded();
     // Navigate to the next screen after a delay
     _navigate();
   }

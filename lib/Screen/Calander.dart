@@ -143,55 +143,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _saveNotificationWhenTimeArrives(reminder, scheduledTime, id);
   }
 
-  // Future<void> _scheduleNotification(
-  //   String reminder,
-  //   DateTime scheduledTime, {
-  //   bool isRepeating = false,
-  //   String repeatType = "daily",
-  // }) async {
-  //   await _requestPermissions();
-  //   if (scheduledTime.isBefore(DateTime.now())) return;
-  //
-  //   final androidDetails = AndroidNotificationDetails(
-  //     'reminder_channel',
-  //     'Reminders',
-  //     importance: Importance.high,
-  //     priority: Priority.high,
-  //     channelDescription: 'Get reminders for your skincare routine!',
-  //     icon: '@mipmap/ic_launcher',
-  //     largeIcon: DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
-  //     color: Colors.deepPurple.shade100,
-  //     enableLights: true,
-  //     ledColor: Colors.purple,
-  //     ledOnMs: 1000,
-  //     ledOffMs: 500,
-  //     enableVibration: true,
-  //     styleInformation: BigTextStyleInformation(reminder),
-  //   );
-  //
-  //   final details = NotificationDetails(android: androidDetails);
-  //
-  //   final id =
-  //       (reminder.hashCode ^ scheduledTime.millisecondsSinceEpoch) & 0x7FFFFFFF;
-  //
-  //   await _notificationsPlugin.zonedSchedule(
-  //     id,
-  //     'Skincare Reminder',
-  //     reminder,
-  //     tz.TZDateTime.from(scheduledTime, tz.local),
-  //     details,
-  //     androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-  //     matchDateTimeComponents:
-  //         isRepeating
-  //             ? (repeatType == "daily"
-  //                 ? DateTimeComponents.time
-  //                 : repeatType == "weekly"
-  //                 ? DateTimeComponents.dayOfWeekAndTime
-  //                 : DateTimeComponents.dayOfMonthAndTime)
-  //             : null,
-  //   );
-  //   _saveNotificationWhenTimeArrives(reminder, scheduledTime);
-  // }
+
 
   void _saveNotificationWhenTimeArrives(
     String reminder,
