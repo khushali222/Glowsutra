@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utiles/onboarding_content.dart';
@@ -60,11 +61,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     padding: const EdgeInsets.all(40.0),
                     child: Column(
                       children: [
-                        Expanded(
-                          child: Image.asset(
-                            contents[i].image,
-                          ),
-                        ),
+                        Expanded(child: Image.asset(contents[i].image)),
                         SizedBox(height: (height >= 840) ? 60 : 30),
                         Text(
                           contents[i].title,
@@ -100,101 +97,126 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(
                       contents.length,
-                          (int index) => _buildDots(index: index),
+                      (int index) => _buildDots(index: index),
                     ),
                   ),
                   _currentPage + 1 == contents.length
                       ? Padding(
-                    padding: const EdgeInsets.all(30),
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        final prefs = await SharedPreferences.getInstance();
-                        await prefs.setBool('onboarding_complete', true);
+                        padding: const EdgeInsets.all(30),
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.setBool('onboarding_complete', true);
+                            final now = DateTime.now();
+                            await prefs.setInt('water_glasses', 0);
+                            await prefs.setString(
+                              'last_updated',
+                              now.toIso8601String(),
+                            );
+                            print(
+                              "Resetting water glasses count because a new day has started.",
+                            );
+                            final deviceId =
+                                prefs.getString('device_id') ??
+                                "unknown_device_id";
+                            print("Device ID splash: $deviceId");
 
-                        // This will clear the OnboardingScreen from the navigation stack
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => HomePage(),
-                          ),
+                            await FirebaseFirestore.instance
+                                .collection("User")
+                                .doc(
+                                  "fireid",
+                                ) // Replace with actual user doc if needed
+                                .collection("waterGlasess")
+                                .doc(deviceId)
+                                .update({
+                                  'glasscount': 0,
+                                  'lastUpdated': Timestamp.now(),
+                                });
+                            print("Firebase glasscount reset to 0. from onbordingscreen ");
+                            // This will clear the OnboardingScreen from the navigation stack
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => HomePage(),
+                              ),
                               (route) => false, // Remove all previous screens
-                        );
-                      },
-                      child: const Text("START"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(50),
-                        ),
-                        padding:
-                        (width <= 550)
-                            ? const EdgeInsets.symmetric(
-                          horizontal: 100,
-                          vertical: 20,
-                        )
-                            : EdgeInsets.symmetric(
-                          horizontal: width * 0.2,
-                          vertical: 25,
-                        ),
-                        textStyle: TextStyle(
-                          fontSize: (width <= 550) ? 13 : 17,
-                        ),
-                      ),
-                    ),
-                  )
-                      : Padding(
-                    padding: const EdgeInsets.all(30),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        TextButton(
-                          onPressed: () {
-                            _controller.jumpToPage(2);
-                          },
-                          child: const Text(
-                            "SKIP",
-                            style: TextStyle(color: Colors.black),
-                          ),
-                          style: TextButton.styleFrom(
-                            elevation: 0,
-                            textStyle: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: (width <= 550) ? 13 : 17,
-                            ),
-                          ),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            _controller.nextPage(
-                              duration: const Duration(milliseconds: 200),
-                              curve: Curves.easeIn,
                             );
                           },
-                          child: const Text("NEXT"),
+                          child: const Text("START"),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.black,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(50),
                             ),
-                            elevation: 0,
                             padding:
-                            (width <= 550)
-                                ? const EdgeInsets.symmetric(
-                              horizontal: 30,
-                              vertical: 20,
-                            )
-                                : const EdgeInsets.symmetric(
-                              horizontal: 30,
-                              vertical: 25,
-                            ),
+                                (width <= 550)
+                                    ? const EdgeInsets.symmetric(
+                                      horizontal: 100,
+                                      vertical: 20,
+                                    )
+                                    : EdgeInsets.symmetric(
+                                      horizontal: width * 0.2,
+                                      vertical: 25,
+                                    ),
                             textStyle: TextStyle(
                               fontSize: (width <= 550) ? 13 : 17,
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ),
+                      )
+                      : Padding(
+                        padding: const EdgeInsets.all(30),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            TextButton(
+                              onPressed: () {
+                                _controller.jumpToPage(2);
+                              },
+                              child: const Text(
+                                "SKIP",
+                                style: TextStyle(color: Colors.black),
+                              ),
+                              style: TextButton.styleFrom(
+                                elevation: 0,
+                                textStyle: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: (width <= 550) ? 13 : 17,
+                                ),
+                              ),
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                _controller.nextPage(
+                                  duration: const Duration(milliseconds: 200),
+                                  curve: Curves.easeIn,
+                                );
+                              },
+                              child: const Text("NEXT"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.black,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                                elevation: 0,
+                                padding:
+                                    (width <= 550)
+                                        ? const EdgeInsets.symmetric(
+                                          horizontal: 30,
+                                          vertical: 20,
+                                        )
+                                        : const EdgeInsets.symmetric(
+                                          horizontal: 30,
+                                          vertical: 25,
+                                        ),
+                                textStyle: TextStyle(
+                                  fontSize: (width <= 550) ? 13 : 17,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                 ],
               ),
             ),

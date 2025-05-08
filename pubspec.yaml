@@ -66,6 +66,7 @@ dependencies:
   firebase_core:
   cloud_firestore:
   permission_handler:
+  change_app_package_name:
 
 
 

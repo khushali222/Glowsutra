@@ -1,4 +1,4 @@
-package com.example.glow_sutra
+package com.glowsutra
 
 import io.flutter.embedding.android.FlutterActivity
 

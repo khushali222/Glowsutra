@@ -433,7 +433,8 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     int dayOffset,
     int hour,
     int minute,
-  ) async {
+  ) async
+  {
     final now = DateTime.now();
     DateTime scheduledTime = DateTime(
       now.year,

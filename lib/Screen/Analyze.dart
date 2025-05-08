@@ -59,6 +59,9 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
     );
     _isloading = true;
     _loadSavedData();
+    if (_imagePath == "") {
+      widget.image = null;
+    }
   }
 
   //Load all three models
@@ -280,6 +283,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
   }
 
   Future<void> _loadSavedData() async {
+    print("call data ");
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       _resultAcne = prefs.getString('acneStatus') ?? "";
@@ -292,8 +296,10 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
       if (_imagePath.isNotEmpty) {
         widget.image = File(_imagePath);
       }
+
       _isloading = false;
       print(" acne $_resultAcne");
+      print(" image $_imagePath");
     });
   }
 
@@ -310,7 +316,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
       await prefs.setString('imagePath', widget.image!.path);
     }
     // Debugging: Print saved values
-    print("✅ Saved Data:");
+    print("Saved Data:");
     print("Acne Status: ${prefs.getString('acneStatus')}");
     print("Skin Type: ${prefs.getString('skinType')}");
     print("Skin Tone: ${prefs.getString('skinTone')}");
@@ -432,12 +438,24 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (widget.image != null ||
-                                  _resultAcne.isNotEmpty ||
-                                  _resultType.isNotEmpty ||
-                                  _resultTone.isNotEmpty ||
-                                  _resultWrinkle.isNotEmpty ||
-                                  _precautions.isNotEmpty)
+                              if (widget.image == null ||
+                                  _resultAcne.isEmpty ||
+                                  _resultType.isEmpty ||
+                                  _resultTone.isEmpty ||
+                                  _resultWrinkle.isEmpty ||
+                                  _precautions.isEmpty)
+                                Center(
+                                  child: Text(
+                                    "📸 Upload an image to analyze your skin!",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                )
+                              else
                                 Padding(
                                   padding: const EdgeInsets.only(
                                     left: 10,
@@ -526,18 +544,6 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
                                         ],
                                       ),
                                     ],
-                                  ),
-                                )
-                              else
-                                Center(
-                                  child: Text(
-                                    "📸 Upload an image to analyze your skin!",
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black,
-                                    ),
-                                    textAlign: TextAlign.center,
                                   ),
                                 ),
                             ],
