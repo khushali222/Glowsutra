@@ -113,25 +113,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               'last_updated',
                               now.toIso8601String(),
                             );
-                            print(
-                              "Resetting water glasses count because a new day has started.",
-                            );
-                            final deviceId =
-                                prefs.getString('device_id') ??
-                                "unknown_device_id";
+                            print("Resetting water glasses count because a new day has started.");
+
+                            final deviceId = prefs.getString('device_id') ?? "unknown_device_id";
                             print("Device ID splash: $deviceId");
 
                             await FirebaseFirestore.instance
                                 .collection("User")
-                                .doc(
-                                  "fireid",
-                                ) // Replace with actual user doc if needed
+                                .doc("fireid") // Replace with actual user ID if dynamic
                                 .collection("waterGlasess")
                                 .doc(deviceId)
-                                .update({
-                                  'glasscount': 0,
-                                  'lastUpdated': Timestamp.now(),
-                                });
+                                .set({
+                              'glasscount': 0,
+                              'lastUpdated': Timestamp.now(),
+                            }, SetOptions(merge: true));
                             print("Firebase glasscount reset to 0. from onbordingscreen ");
                             // This will clear the OnboardingScreen from the navigation stack
                             Navigator.pushAndRemoveUntil(

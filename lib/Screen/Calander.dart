@@ -60,7 +60,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
     );
-    final initSettings = InitializationSettings(android: androidSettings);
+    const DarwinInitializationSettings initializationSettingsIOS =
+    DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+    final initSettings = InitializationSettings(
+        android: androidSettings,
+      iOS: initializationSettingsIOS,
+    );
 
     await _notificationsPlugin.initialize(
       initSettings,

@@ -167,11 +167,16 @@ class _DashboardState extends State<Dashboard> {
   Future<void> _initializeNotifications() async {
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-
+    const DarwinInitializationSettings initializationSettingsIOS =
+    DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
     final InitializationSettings settings = InitializationSettings(
       android: androidSettings,
+      iOS: initializationSettingsIOS,
     );
-
     await _notificationsPlugin.initialize(
       settings,
       onDidReceiveNotificationResponse: (response) {
