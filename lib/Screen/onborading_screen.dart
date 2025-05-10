@@ -128,10 +128,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 ) // Replace with actual user doc if needed
                                 .collection("waterGlasess")
                                 .doc(deviceId)
-                                .update({
+                                .set({
                                   'glasscount': 0,
                                   'lastUpdated': Timestamp.now(),
-                                });
+                                },SetOptions(merge: true)
+                                );
                             print("Firebase glasscount reset to 0. from onbordingscreen ");
                             // This will clear the OnboardingScreen from the navigation stack
                             Navigator.pushAndRemoveUntil(

@@ -598,7 +598,8 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
     String? selectedValue,
     List<String> options,
     Function(String?) onChanged,
-  ) {
+  )
+  {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Column(

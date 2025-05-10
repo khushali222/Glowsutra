@@ -138,6 +138,8 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
   //     FlutterLocalNotificationsPlugin();
   bool notificationsEnabled = false;
   String selectedReminder = "None"; // Default: No reminders
+
+
   @override
   void initState() {
     super.initState();

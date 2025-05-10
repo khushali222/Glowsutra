@@ -149,7 +149,6 @@ class _DashboardState extends State<Dashboard> {
     await _loadReminders();
   }
 
-
   Future<void> _markNotificationAsRead(String? notification) async {
     if (notification != null) {
       setState(() {
@@ -312,7 +311,6 @@ class _DashboardState extends State<Dashboard> {
                             ),
                           ),
                           SizedBox(height: 20),
-
                           // Carousel
                           CarouselSlider(
                             options: CarouselOptions(
@@ -556,11 +554,10 @@ class _DashboardState extends State<Dashboard> {
                                               color: Colors.red,
                                             ),
                                             onPressed: () async {
-                                            await  _removeReminder(
+                                              await _removeReminder(
                                                 reminderDate,
                                                 reminderText,
                                               );
-
                                             },
                                           ),
                                         ),
@@ -601,6 +598,7 @@ class _DashboardState extends State<Dashboard> {
                                             (context) => WaterIntakeScreen(),
                                       ),
                                     );
+                                    print("calling dash 1");
                                     _loadWaterIntake();
                                     setState(() {});
                                   },

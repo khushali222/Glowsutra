@@ -96,6 +96,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     tz.initializeTimeZones();
 
+    const iosNotificatonDetail = DarwinNotificationDetails();
+
     final androidDetails = AndroidNotificationDetails(
       'reminder_channel',
       'Reminders',
@@ -143,13 +145,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _saveNotificationWhenTimeArrives(reminder, scheduledTime, id);
   }
 
-
-
   void _saveNotificationWhenTimeArrives(
     String reminder,
     DateTime scheduledTime,
     int id,
-  ) async {
+  ) async
+  {
     Duration delay = scheduledTime.difference(DateTime.now());
     if (delay.isNegative) return;
 
@@ -262,7 +263,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> _addReminder() async {
-    final pickedTime = await showTimePicker(
+    final pickedTime = await
+
+    showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
     );
