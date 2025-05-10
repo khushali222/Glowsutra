@@ -36,7 +36,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     tz.initializeTimeZones();
     _calendarFormat = CalendarFormat.month;
     _initializeNotifications();
-    requestNotificationPermission();
+    //requestNotificationPermission();
     _loadReminders();
     _loadPresetSettings();
     _loadUnreadNotifications();
@@ -99,12 +99,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
     String repeatType = "daily",
   }) async
   {
-    await _requestPermissions();
+   // await _requestPermissions();
 
     if (scheduledTime.isBefore(DateTime.now())) return;
 
     tz.initializeTimeZones();
-
+    // iOS-specific notification details
+    final iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      badgeNumber: 1,
+      threadIdentifier: 'skincare-reminders',
+      categoryIdentifier: 'skincare_reminder_category',
+      subtitle: 'Skincare Reminder',
+     // sound: DarwinNotificationSound('default'),
+      attachments: [
+        // Optional: Add image attachments if needed
+        // DarwinNotificationAttachment('path/to/image.jpg')
+      ],
+    );
     final androidDetails = AndroidNotificationDetails(
       'reminder_channel',
       'Reminders',
@@ -122,7 +136,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       styleInformation: BigTextStyleInformation(reminder),
     );
 
-    final details = NotificationDetails(android: androidDetails);
+    final details = NotificationDetails(android: androidDetails,iOS: iosDetails,);
 
     final id =
         (reminder.hashCode ^ scheduledTime.millisecondsSinceEpoch) & 0x7FFFFFFF;

@@ -387,21 +387,12 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
   void _scheduleNotifications(int days) {
     // flutterLocalNotificationsPlugin.cancelAll();
     final List<int> reminderHours = [
-      9,
-      10,
-      11,
-      12,
-      13,
-      14,
-      15,
+
       16,
-      17,
-      18,
-      19,
-      20,
-      21,
+      17
+
     ];
-    final List<int> reminderMinutes = [0,21,23,25,27,29,31,33,35,37,39,41,49];
+    final List<int> reminderMinutes = [0,1,3,5,6,7,21,23,25,27,29,31,33,35,37,39,41,49];
     for (int day = 0; day < days; day++) {
       for (int hour in reminderHours) {
         for (int minute in reminderMinutes) {
@@ -491,9 +482,22 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
             AndroidNotificationAction('snooze_action', 'Snooze'),
           ],
         );
+    // iOS-specific notification details
+    final iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      badgeNumber: 1,
+      threadIdentifier: 'skincare-reminders',
+      categoryIdentifier: 'skincare_reminder_category',
+      subtitle: 'Skincare Reminder',
+      //sound: DarwinNotificationSound('default'),
+
+    );
 
     final NotificationDetails notificationDetails = NotificationDetails(
       android: androidDetails,
+      iOS: iosDetails
     );
 
     int id = dayOffset * 10000 + hour * 100 + minute;
