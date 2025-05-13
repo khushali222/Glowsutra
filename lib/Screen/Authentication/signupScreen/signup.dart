@@ -255,10 +255,11 @@ class _SignupScreenState extends State<SignupScreen> {
                   ), // Limit input to 10 digits
                 ],
                 validator: (value) {
-                  if (value != null &&
-                      value.isNotEmpty &&
-                      !_isValidMobile(value)) {
-                    return 'Please enter a valid mobile number';
+                  value = value?.trim(); // Remove whitespace
+                  if (value == null || value.isEmpty) {
+                    return 'Mobile number cannot be empty';
+                  } else if (!_isValidMobile(value)) {
+                    return 'Please enter a valid 10-digit mobile number';
                   }
                   return null;
                 },

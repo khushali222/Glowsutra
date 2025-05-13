@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -18,8 +19,7 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 @pragma('vm:entry-point')
 Future<void> notificationTapBackground(
   NotificationResponse notificationResponse,
-) async
-{
+) async {
   await Firebase.initializeApp();
   final String? actionId = notificationResponse.actionId;
   final String? payload = notificationResponse.payload;
@@ -37,12 +37,19 @@ Future<void> notificationTapBackground(
           "unknown_device_id"; // Get the device ID from SharedPreferences
 
       print("$deviceId Device ID (from SharedPreferences): ");
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+
+      if (userId == null) {
+        // Handle the case where the user is not logged in
+        print("No user is logged in.");
+        return;
+      }
       DocumentSnapshot<Map<String, dynamic>> snapshot =
           await FirebaseFirestore.instance
               .collection("User")
               .doc("fireid")
               .collection("waterGlasess")
-              .doc(deviceId)
+              .doc(userId)
               .get();
       // Get the current time zone
       final currentTimeZone = tz.local.name;
@@ -58,15 +65,14 @@ Future<void> notificationTapBackground(
         currentGlasses = 8;
       }
       FirebaseFirestore.instance
-          .collection("User")
-          .doc("fireid")
-          .collection("waterGlasess")
-          .doc(deviceId)
-          ..set({
-            "glasscount": currentGlasses,
-            "timezone": currentTimeZone,
-            "lastUpdated": Timestamp.now(),
-          });
+        .collection("User")
+        .doc("fireid")
+        .collection("waterGlasess")
+        .doc(userId)..set({
+        "glasscount": currentGlasses,
+        "timezone": currentTimeZone,
+        "lastUpdated": Timestamp.now(),
+      });
 
       // Also update SharedPreferences (optional)
 
@@ -139,7 +145,6 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
   bool notificationsEnabled = false;
   String selectedReminder = "None"; // Default: No reminders
 
-
   @override
   void initState() {
     super.initState();
@@ -164,6 +169,13 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
   Future<void> _loadWaterIntake() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final deviceId = prefs.getString('device_id') ?? "unknown_device_id";
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+
+    if (userId == null) {
+      // Handle the case where the user is not logged in
+      print("No user is logged in.");
+      return;
+    }
     try {
       // Fetch current glass count from Firestore
       DocumentSnapshot<Map<String, dynamic>> snapshot =
@@ -171,7 +183,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
               .collection("User")
               .doc("fireid")
               .collection("waterGlasess")
-              .doc(deviceId)
+              .doc(userId)
               .get();
 
       int currentGlasses = 0;
@@ -195,13 +207,20 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     final prefs = await SharedPreferences.getInstance();
     final deviceId = prefs.getString('device_id') ?? "unknown_device_id";
     final currentTimeZone = tz.local.name;
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+
+    if (userId == null) {
+      // Handle the case where the user is not logged in
+      print("No user is logged in.");
+      return;
+    }
     try {
       // Update in Firestore
       FirebaseFirestore.instance
           .collection("User")
           .doc("fireid")
           .collection("waterGlasess")
-          .doc(deviceId)
+          .doc(userId)
           .set({
             "glasscount": totalGlasses,
             "timezone": currentTimeZone,
@@ -381,21 +400,21 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
   void _scheduleNotifications(int days) {
     // flutterLocalNotificationsPlugin.cancelAll();
     final List<int> reminderHours = [
-      9,
-      10,
-      11,
-      12,
-      13,
-      14,
+      // 9,
+      // 10,
+      // 11,
+      // 12,
+      // 13,
+      // 14,
       15,
       16,
-      17,
-      18,
-      19,
-      20,
-      21,
+      // 17,
+      // 18,
+      // 19,
+      // 20,
+      // 21,
     ];
-    final List<int> reminderMinutes = [0];
+    final List<int> reminderMinutes = [0,6,8,10,12,14,16,18,20,22,24,26,28,30];
     for (int day = 0; day < days; day++) {
       for (int hour in reminderHours) {
         for (int minute in reminderMinutes) {
@@ -435,8 +454,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     int dayOffset,
     int hour,
     int minute,
-  ) async
-  {
+  ) async {
     final now = DateTime.now();
     DateTime scheduledTime = DateTime(
       now.year,

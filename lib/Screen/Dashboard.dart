@@ -202,6 +202,13 @@ class _DashboardState extends State<Dashboard> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final deviceId = prefs.getString('device_id') ?? "unknown_device_id";
     //print("dashid $deviceId");
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+
+    if (userId == null) {
+      // Handle the case where the user is not logged in
+      print("No user is logged in.");
+      return;
+    }
     try {
       // Fetch current glass count from Firestore
       DocumentSnapshot<Map<String, dynamic>> snapshot =
@@ -209,7 +216,7 @@ class _DashboardState extends State<Dashboard> {
               .collection("User")
               .doc("fireid")
               .collection("waterGlasess")
-              .doc(deviceId)
+              .doc(userId)
               .get();
 
       int currentGlasses = 0;

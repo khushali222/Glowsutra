@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:glow_sutra/Screen/Authentication/LoginScreen/login.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -106,36 +107,42 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         padding: const EdgeInsets.all(30),
                         child: ElevatedButton(
                           onPressed: () async {
-                            final prefs = await SharedPreferences.getInstance();
-                            await prefs.setBool('onboarding_complete', true);
-                            final now = DateTime.now();
-                            await prefs.setInt('water_glasses', 0);
-                            await prefs.setString(
-                              'last_updated',
-                              now.toIso8601String(),
-                            );
-                            print(
-                              "Resetting water glasses count because a new day has started.",
-                            );
-                            final deviceId =
-                                prefs.getString('device_id') ??
-                                "unknown_device_id";
-                            print("Device ID splash: $deviceId");
-
-                            await FirebaseFirestore.instance
-                                .collection("User")
-                                .doc(
-                                  "fireid",
-                                ) // Replace with actual user doc if needed
-                                .collection("waterGlasess")
-                                .doc(deviceId)
-                                .set({
-                                  'glasscount': 0,
-                                  'lastUpdated': Timestamp.now(),
-                                },SetOptions(merge: true)
-                                );
-                            print("Firebase glasscount reset to 0. from onbordingscreen ");
-                            // This will clear the OnboardingScreen from the navigation stack
+                            // final prefs = await SharedPreferences.getInstance();
+                            // await prefs.setBool('onboarding_complete', true);
+                            // final now = DateTime.now();
+                            // await prefs.setInt('water_glasses', 0);
+                            // await prefs.setString(
+                            //   'last_updated',
+                            //   now.toIso8601String(),
+                            // );
+                            // print(
+                            //   "Resetting water glasses count because a new day has started.",
+                            // );
+                            // final deviceId =
+                            //     prefs.getString('device_id') ??
+                            //     "unknown_device_id";
+                            // print("Device ID splash: $deviceId");
+                            // final userId = FirebaseAuth.instance.currentUser?.uid;
+                            //
+                            // if (userId == null) {
+                            //   // Handle the case where the user is not logged in
+                            //   print("No user is logged in.");
+                            //   return;
+                            // }
+                            // await FirebaseFirestore.instance
+                            //     .collection("User")
+                            //     .doc(
+                            //       "fireid",
+                            //     ) // Replace with actual user doc if needed
+                            //     .collection("waterGlasess")
+                            //     .doc(userId)
+                            //     .set({
+                            //       'glasscount': 0,
+                            //       'lastUpdated': Timestamp.now(),
+                            //     },SetOptions(merge: true)
+                            //     );
+                            // print("Firebase glasscount reset to 0. from onbordingscreen ");
+                            // // This will clear the OnboardingScreen from the navigation stack
                             Navigator.pushAndRemoveUntil(
                               context,
                               MaterialPageRoute(

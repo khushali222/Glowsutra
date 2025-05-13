@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Needed for Firestore
+
 import '../../Dashboard.dart';
 import '../../home.dart';
 import '../ForgotScreen/forgotpassword.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../signupScreen/signup.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -16,14 +18,14 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-
   final _auth = FirebaseAuth.instance;
+
   bool _isLoading = false;
   String? _emailError;
   String? _passwordError;
-  bool _isPasswordVisible = false; // To toggle the password visibility
+  bool _isPasswordVisible = false;
 
-  // Function to validate and login the user
+  // LOGIN FUNCTION
   void _login() async {
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
@@ -35,22 +37,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (email.isEmpty) {
       setState(() {
-        _emailError = 'Please enter your email.';
+        _emailError = 'Please enter your email or mobile number.';
       });
     }
 
     if (password.isEmpty) {
       setState(() {
         _passwordError = 'Please enter your password.';
-      });
-    }
-
-    if (email.isNotEmpty &&
-        !RegExp(
-          r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$",
-        ).hasMatch(email)) {
-      setState(() {
-        _emailError = 'Please enter a valid email address.';
       });
     }
 
@@ -62,18 +55,54 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
+    String? emailToUse;
+
+    // Check if email is mobile number
+    if (RegExp(r"^[0-9]{10}$").hasMatch(email)) {
+      try {
+        final querySnapshot =
+            await FirebaseFirestore.instance
+                .collection('User')
+                .where('mobile', isEqualTo: email)
+                .limit(1)
+                .get();
+
+        if (querySnapshot.docs.isEmpty) {
+          Fluttertoast.showToast(msg: 'No user found with this mobile number.');
+          setState(() => _isLoading = false);
+          return;
+        }
+        emailToUse = querySnapshot.docs.first['email'];
+      } catch (e) {
+        Fluttertoast.showToast(msg: 'Failed to fetch user info.');
+        setState(() => _isLoading = false);
+        return;
+      }
+    } else {
+      // Assume it's an email
+      if (!RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$").hasMatch(email)) {
+        setState(() {
+          _emailError = 'Please enter a valid email address.';
+          _isLoading = false;
+        });
+        return;
+      }
+      emailToUse = email;
+    }
+
     try {
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      await _auth.signInWithEmailAndPassword(
+        email: emailToUse!,
+        password: password,
+      );
 
       Fluttertoast.showToast(msg: 'Login successful');
-
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => HomePage()),
       );
     } on FirebaseAuthException catch (e) {
       String errorMessage = 'An error occurred!';
-
       switch (e.code) {
         case 'invalid-email':
           errorMessage = 'The email address is badly formatted.';
@@ -82,44 +111,17 @@ class _LoginScreenState extends State<LoginScreen> {
           errorMessage = 'This user has been disabled.';
           break;
         case 'user-not-found':
-          errorMessage =
-              'No user found with this email. Please check the email address or sign up.';
+          errorMessage = 'No user found. Please check your credentials.';
           break;
         case 'wrong-password':
-          errorMessage = 'Incorrect password. Please check your password.';
+          errorMessage = 'Incorrect password.';
           break;
-        case 'too-many-requests':
-          errorMessage = 'Too many failed attempts. Try again later.';
-          break;
-        case 'operation-not-allowed':
-          errorMessage = 'Email/password sign-in is not enabled.';
-          break;
-        case 'invalid-credential':
-          errorMessage = 'Invalid credentials provided.';
-          break;
-        case 'account-exists-with-different-credential':
-          errorMessage =
-              'Account exists with this email using a different sign-in method.';
-          break;
-        case 'requires-recent-login':
-          errorMessage = 'Please log in again.';
-          break;
-        case 'email-change-needs-verify':
-          errorMessage = 'Please verify your new email address.';
-          break;
-        case 'unknown':
-          errorMessage = 'An unknown error occurred.';
-          break;
-        case 'timeout':
-          errorMessage = 'The request timed out. Please try again.';
-          break;
+        default:
+          errorMessage = e.message ?? 'Unknown error.';
       }
-
       Fluttertoast.showToast(msg: errorMessage);
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     }
   }
 
@@ -133,42 +135,31 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.deepPurple.shade50, // Lighter purple background
-      // appBar: AppBar(
-      //   title: Text('Login'),
-      //   backgroundColor: Colors.deepPurple.shade600, // Deep Purple app bar color
-      //   elevation: 0,
-      // ),
+      backgroundColor: Colors.deepPurple.shade50,
       body: Padding(
         padding: const EdgeInsets.all(20.0),
         child: SingleChildScrollView(
-          // To avoid overflow on small screens
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SizedBox(
-                height: 100,
-              ),
-              // Main Text
-              Padding(
-                padding: const EdgeInsets.only(bottom: 30),
-                child: Text(
-                  'Login to Your Account',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.deepPurple,
-                  ),
+              SizedBox(height: 100),
+              Text(
+                'Login to Your Account',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.deepPurple,
                 ),
               ),
+              SizedBox(height: 30),
 
-              // Email TextField
+              // EMAIL OR MOBILE FIELD
               TextField(
                 controller: _emailController,
                 decoration: InputDecoration(
-                  labelText: 'Email',
+                  labelText: 'Email or Mobile',
                   labelStyle: TextStyle(color: Colors.deepPurple),
                   errorText: _emailError,
                   border: OutlineInputBorder(
@@ -188,7 +179,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               SizedBox(height: 16),
-              // Password TextField with eye icon
+
+              // PASSWORD FIELD
               TextField(
                 controller: _passwordController,
                 obscureText: !_isPasswordVisible,
@@ -213,22 +205,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   suffixIcon: IconButton(
                     icon: Icon(
                       _isPasswordVisible
-                          ? Icons.visibility_off // Show "visibility_off" when password is visible
-                          : Icons.visibility,    // Show "visibility" when password is hidden
+                          ? Icons.visibility_off
+                          : Icons.visibility,
                       color: Colors.deepPurple,
                     ),
                     onPressed: () {
                       setState(() {
-                        _isPasswordVisible = !_isPasswordVisible; // Toggle the visibility state
+                        _isPasswordVisible = !_isPasswordVisible;
                       });
                     },
                   ),
-
                 ),
               ),
               SizedBox(height: 16),
 
-              // Login Button with Elevated Design
+              // LOGIN BUTTON
               _isLoading
                   ? Center(child: CircularProgressIndicator())
                   : ElevatedButton(
@@ -239,13 +230,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      elevation: 5, // Shadow effect
+                      elevation: 5,
                       textStyle: TextStyle(fontSize: 18),
                     ),
                   ),
               SizedBox(height: 16),
 
-              // Forgot Password Link
+              // FORGOT PASSWORD
               TextButton(
                 onPressed: () {
                   Navigator.push(
@@ -264,7 +255,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
 
-              // Navigate to Signup Screen
+              // SIGN UP LINK
               Padding(
                 padding: const EdgeInsets.only(top: 16),
                 child: TextButton(

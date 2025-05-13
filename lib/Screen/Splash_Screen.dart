@@ -30,12 +30,19 @@ class _SplashScreenState extends State<SplashScreen>
     // Try to fetch document from Firestore
     print(lastUpdatedString);
     print(deviceId);
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+
+    if (userId == null) {
+      // Handle the case where the user is not logged in
+      print("No user is logged in.");
+      return;
+    }
     DocumentSnapshot<Map<String, dynamic>> snapshot =
         await FirebaseFirestore.instance
             .collection("User")
             .doc("fireid")
             .collection("waterGlasess")
-            .doc(deviceId)
+            .doc(userId)
             .get();
 
     if (snapshot.exists &&
@@ -81,12 +88,19 @@ class _SplashScreenState extends State<SplashScreen>
         print("Resetting water glasses count because a new day has started.");
         final deviceId = prefs.getString('device_id') ?? "unknown_device_id";
         print("Device ID splash: $deviceId");
+        final userId = FirebaseAuth.instance.currentUser?.uid;
+
+        if (userId == null) {
+          // Handle the case where the user is not logged in
+          print("No user is logged in.");
+          return;
+        }
         try {
           await FirebaseFirestore.instance
               .collection("User")
               .doc("fireid") // Replace with actual user doc if needed
               .collection("waterGlasess")
-              .doc(deviceId)
+              .doc(userId)
               .update({'glasscount': 0, 'lastUpdated': Timestamp.now()});
           print("Firebase glasscount reset to 0.");
         } catch (e) {
@@ -154,26 +168,6 @@ class _SplashScreenState extends State<SplashScreen>
     _navigate();
   }
 
-  // Future<void> _navigate() async {
-  //   await Future.delayed(const Duration(seconds: 5)); // splash delay
-  //
-  //   final prefs = await SharedPreferences.getInstance();
-  //   final onboardingSeen = prefs.getBool('onboarding_complete') ?? false;
-  //
-  //   if (onboardingSeen) {
-  //     Navigator.pushAndRemoveUntil(
-  //       context,
-  //       MaterialPageRoute(builder: (_) => HomePage()),
-  //       (route) => false, // This will remove all previous screens in the stack
-  //     );
-  //   } else {
-  //     Navigator.pushAndRemoveUntil(
-  //       context,
-  //       MaterialPageRoute(builder: (_) => OnboardingScreen()),
-  //       (route) => false, // This will remove all previous screens in the stack
-  //     );
-  //   }
-  // }
   Future<void> _navigate() async {
     final prefs = await SharedPreferences.getInstance();
     final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
