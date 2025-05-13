@@ -395,7 +395,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
       20,
       21,
     ];
-    final List<int> reminderMinutes = [0,21,23,25,27,29,31,33,35,37,39,41,49];
+    final List<int> reminderMinutes = [0];
     for (int day = 0; day < days; day++) {
       for (int hour in reminderHours) {
         for (int minute in reminderMinutes) {

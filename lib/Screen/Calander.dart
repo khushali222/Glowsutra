@@ -88,8 +88,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     DateTime scheduledTime, {
     bool isRepeating = false,
     String repeatType = "daily",
-  }) async
-  {
+  }) async {
     await _requestPermissions();
 
     if (scheduledTime.isBefore(DateTime.now())) return;
@@ -149,8 +148,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     String reminder,
     DateTime scheduledTime,
     int id,
-  ) async
-  {
+  ) async {
     Duration delay = scheduledTime.difference(DateTime.now());
     if (delay.isNegative) return;
 
@@ -260,12 +258,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
       (key, value) => MapEntry(key.toIso8601String(), value),
     );
     await prefs.setString('reminders', jsonEncode(formatted));
+    print("caling save reminder ");
   }
 
   Future<void> _addReminder() async {
-    final pickedTime = await
-
-    showTimePicker(
+    final pickedTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
     );

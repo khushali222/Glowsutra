@@ -2,8 +2,10 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'Authentication/LoginScreen/login.dart';
 import 'home.dart';
 import 'onborading_screen.dart';
 
@@ -29,14 +31,16 @@ class _SplashScreenState extends State<SplashScreen>
     print(lastUpdatedString);
     print(deviceId);
     DocumentSnapshot<Map<String, dynamic>> snapshot =
-    await FirebaseFirestore.instance
-        .collection("User")
-        .doc("fireid")
-        .collection("waterGlasess")
-        .doc(deviceId)
-        .get();
+        await FirebaseFirestore.instance
+            .collection("User")
+            .doc("fireid")
+            .collection("waterGlasess")
+            .doc(deviceId)
+            .get();
 
-    if (snapshot.exists && snapshot.data() != null && snapshot.data()!['lastUpdated'] != null) {
+    if (snapshot.exists &&
+        snapshot.data() != null &&
+        snapshot.data()!['lastUpdated'] != null) {
       final data = snapshot.data()!;
       final Timestamp timestamp = data["lastUpdated"];
 
@@ -92,10 +96,13 @@ class _SplashScreenState extends State<SplashScreen>
         print("No reset needed (still within the same day).");
       }
     } else {
-      print("Firestore document or 'lastUpdated' is missing, skipping reset logic.");
+      print(
+        "Firestore document or 'lastUpdated' is missing, skipping reset logic.",
+      );
       return; // exit early if no data
     }
   }
+
   Future<void> _fetchAndSaveDeviceId() async {
     final deviceId = await getDeviceId(); // Get device ID
     final prefs = await SharedPreferences.getInstance();
@@ -105,6 +112,7 @@ class _SplashScreenState extends State<SplashScreen>
     ); // Save device ID in SharedPreferences
     print("Device ID saved in SharedPreferences: $deviceId");
   }
+
   Future<String> getDeviceId() async {
     final deviceInfo = DeviceInfoPlugin();
     if (Platform.isIOS) {
@@ -116,6 +124,7 @@ class _SplashScreenState extends State<SplashScreen>
     }
     return "unknown_device_id";
   }
+
   @override
   void initState() {
     super.initState();
@@ -145,24 +154,55 @@ class _SplashScreenState extends State<SplashScreen>
     _navigate();
   }
 
+  // Future<void> _navigate() async {
+  //   await Future.delayed(const Duration(seconds: 5)); // splash delay
+  //
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final onboardingSeen = prefs.getBool('onboarding_complete') ?? false;
+  //
+  //   if (onboardingSeen) {
+  //     Navigator.pushAndRemoveUntil(
+  //       context,
+  //       MaterialPageRoute(builder: (_) => HomePage()),
+  //       (route) => false, // This will remove all previous screens in the stack
+  //     );
+  //   } else {
+  //     Navigator.pushAndRemoveUntil(
+  //       context,
+  //       MaterialPageRoute(builder: (_) => OnboardingScreen()),
+  //       (route) => false, // This will remove all previous screens in the stack
+  //     );
+  //   }
+  // }
   Future<void> _navigate() async {
-    await Future.delayed(const Duration(seconds: 5)); // splash delay
-
     final prefs = await SharedPreferences.getInstance();
-    final onboardingSeen = prefs.getBool('onboarding_complete') ?? false;
+    final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+    final user = FirebaseAuth.instance.currentUser;
 
-    if (onboardingSeen) {
-      Navigator.pushAndRemoveUntil(
+    await Future.delayed(
+      Duration(seconds: 3),
+    ); // Show splash screen for 3 seconds
+
+    if (!onboardingComplete) {
+      // Navigate to onboarding if not completed
+      Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => HomePage()),
-        (route) => false, // This will remove all previous screens in the stack
+        MaterialPageRoute(builder: (context) => OnboardingScreen()),
       );
     } else {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => OnboardingScreen()),
-        (route) => false, // This will remove all previous screens in the stack
-      );
+      if (user != null) {
+        // Navigate to Home Screen if user is authenticated
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomePage()),
+        );
+      } else {
+        // Navigate to Login Screen if user is not authenticated
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+        );
+      }
     }
   }
 

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:glow_sutra/Screen/Authentication/LoginScreen/login.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utiles/onboarding_content.dart';
 import '../utiles/size_config.dart';
@@ -88,7 +89,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 },
               ),
             ),
-            Expanded(
+            Expanded (
               flex: 1,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -138,7 +139,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             Navigator.pushAndRemoveUntil(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => HomePage(),
+                                builder: (context) => LoginScreen(),
                               ),
                               (route) => false, // Remove all previous screens
                             );

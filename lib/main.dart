@@ -2,6 +2,8 @@ import 'package:device_preview/device_preview.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
+import 'Screen/Authentication/LoginScreen/login.dart';
+import 'Screen/Authentication/signupScreen/signup.dart';
 import 'Screen/Splash_Screen.dart';
 
 void main() async {
@@ -37,6 +39,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(fontFamily: 'Poppins'),
       debugShowCheckedModeBanner: false,
       home: SplashScreen(),
+      //home: SignupScreen(),
     );
   }
 }

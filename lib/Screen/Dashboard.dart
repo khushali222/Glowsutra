@@ -5,15 +5,18 @@ import 'package:carousel_slider/carousel_options.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../widgets/custom_appbar.dart';
+import 'Authentication/LoginScreen/login.dart';
 import 'Calander.dart';
 import 'Home_Remedies.dart';
 import 'Profile.dart';
@@ -276,6 +279,23 @@ class _DashboardState extends State<Dashboard> {
     // print("Filtered notifications: $_unreadNotifications");
   }
 
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  // Logout Function
+  Future<void> _logout() async {
+    try {
+      await _auth.signOut();
+      Fluttertoast.showToast(msg: 'Logged out successfully');
+      // Navigate to login screen after logout
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+      );
+    } catch (e) {
+      Fluttertoast.showToast(msg: 'Failed to log out: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     List<MapEntry<DateTime, String>> todaysReminders = _getTodaysReminders();
@@ -284,7 +304,32 @@ class _DashboardState extends State<Dashboard> {
       builder: (context, snapshot) {
         _loadWaterIntake();
         return Scaffold(
-          appBar: CustomAppBar(title: 'Dashboard'),
+          appBar: CustomAppBar(
+            title: 'Dashboard',
+            actions: [
+              PopupMenuButton<String>(
+                onSelected: (String value) {
+                  if (value == 'logout') {
+                    _logout();
+                  }
+                },
+                itemBuilder: (BuildContext context) {
+                  return [
+                    PopupMenuItem<String>(
+                      value: 'logout',
+                      child: Row(
+                        children: [
+                          Icon(Icons.logout, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Logout', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                  ];
+                },
+              ),
+            ],
+          ),
           body:
               _isLoading
                   ? Center(child: SpinKitCircle(color: Colors.black))
