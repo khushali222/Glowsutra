@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Needed for Firestore
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../Dashboard.dart';
 import '../../home.dart';
@@ -95,7 +96,8 @@ class _LoginScreenState extends State<LoginScreen> {
         email: emailToUse!,
         password: password,
       );
-
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('onboarding_complete', true);
       Fluttertoast.showToast(msg: 'Login successful');
       Navigator.pushReplacement(
         context,
