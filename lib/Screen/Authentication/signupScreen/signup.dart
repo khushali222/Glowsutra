@@ -291,15 +291,17 @@
 //   }
 // }
 
-
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 import 'dart:convert';
 
 import '../../home.dart';
@@ -324,35 +326,82 @@ class _SignupScreenState extends State<SignupScreen> {
 
   File? _selectedImage;
 
-  // Pick image from gallery
+  Future<File?> compressImage(File file) async {
+    final dir = await getTemporaryDirectory();
+    final targetPath = path.join(
+      dir.path,
+      '${DateTime.now().millisecondsSinceEpoch}.jpg',
+    );
+
+    final result = await FlutterImageCompress.compressAndGetFile(
+      file.absolute.path,
+      targetPath,
+      quality: 75,
+      minWidth: 800,
+      minHeight: 800,
+    );
+
+    if (result != null) {
+      final compressedFile = File(result.path); // ✅ Convert XFile to File
+      print("Compressed size: ${await compressedFile.length() / 1024} KB");
+      return compressedFile;
+    }
+
+    return null;
+  }
+
+  // Pick and compress image
   Future<void> _pickImage() async {
-    final pickedFile =
-    await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 75);
+    final pickedFile = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 100, // pick full quality; we’ll compress it ourselves
+    );
 
     if (pickedFile != null) {
+      File originalFile = File(pickedFile.path);
+      File? compressed = await compressImage(originalFile);
       setState(() {
-        _selectedImage = File(pickedFile.path);
+        _selectedImage = compressed ?? originalFile;
       });
     }
+    String? imageUrl = await _uploadToCloudinary(_selectedImage!);
   }
+
+  // Pick image from gallery
+  // Future<void> _pickImage() async {
+  //   final pickedFile =
+  //   await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 75);
+  //
+  //   if (pickedFile != null) {
+  //     setState(() {
+  //       _selectedImage = File(pickedFile.path);
+  //     });
+  //   }
+  // }
 
   // Upload image to Cloudinary
   Future<String?> _uploadToCloudinary(File imageFile) async {
     const cloudName = 'doinw37vn';
     const uploadPreset = 'glowsutra_image_preset';
 
-    final url = Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/image/upload');
+    final url = Uri.parse(
+      'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
+    );
 
-    final request = http.MultipartRequest('POST', url)
-      ..fields['upload_preset'] = uploadPreset
-      ..files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+    final request =
+        http.MultipartRequest('POST', url)
+          ..fields['upload_preset'] = uploadPreset
+          ..files.add(
+            await http.MultipartFile.fromPath('file', imageFile.path),
+          );
 
     final response = await request.send();
-   print("reponce $response");
-   print("url $url");
+    print("reponce $response");
+    print("url $url");
     if (response.statusCode == 200) {
       final responseData = await response.stream.bytesToString();
       final result = json.decode(responseData);
+      print(" result $result");
       return result['secure_url']; // Cloudinary image URL
     } else {
       Fluttertoast.showToast(msg: 'Image upload failed');
@@ -374,27 +423,28 @@ class _SignupScreenState extends State<SignupScreen> {
         String? imageUrl = await _uploadToCloudinary(_selectedImage!);
         if (imageUrl == null) return;
 
-        UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
+        UserCredential userCredential = await _auth
+            .createUserWithEmailAndPassword(
+              email: _emailController.text,
+              password: _passwordController.text,
+            );
 
         await FirebaseFirestore.instance
             .collection('User')
             .doc(userCredential.user?.uid)
             .set({
-          'name': _nameController.text,
-          'email': _emailController.text,
-          'mobile': _mobileController.text,
-          'password': _passwordController.text,
-          'profile_photo': imageUrl,
-        });
+              'name': _nameController.text,
+              'email': _emailController.text,
+              'mobile': _mobileController.text,
+              'password': _passwordController.text,
+              'profile_photo': imageUrl,
+            });
 
         Fluttertoast.showToast(msg: 'Signup successful!');
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => HomePage()),
-              (Route<dynamic> route) => false,
+          (Route<dynamic> route) => false,
         );
       } on FirebaseAuthException catch (e) {
         Fluttertoast.showToast(msg: e.message ?? 'Signup failed');
@@ -408,7 +458,10 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget build(BuildContext context) {
     Color deepPurpleShade100 = Color(0xFFD1C4E9);
     return Scaffold(
-      appBar: AppBar(title: Text('Sign Up'), backgroundColor: deepPurpleShade100),
+      appBar: AppBar(
+        title: Text('Sign Up'),
+        backgroundColor: deepPurpleShade100,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -423,10 +476,17 @@ class _SignupScreenState extends State<SignupScreen> {
                     radius: 50,
                     backgroundColor: Colors.grey[300],
                     backgroundImage:
-                    _selectedImage != null ? FileImage(_selectedImage!) : null,
-                    child: _selectedImage == null
-                        ? Icon(Icons.camera_alt, size: 40, color: Colors.white)
-                        : null,
+                        _selectedImage != null
+                            ? FileImage(_selectedImage!)
+                            : null,
+                    child:
+                        _selectedImage == null
+                            ? Icon(
+                              Icons.camera_alt,
+                              size: 40,
+                              color: Colors.white,
+                            )
+                            : null,
                   ),
                 ),
               ),
@@ -435,15 +495,23 @@ class _SignupScreenState extends State<SignupScreen> {
               // Name
               TextFormField(
                 controller: _nameController,
-                decoration: InputDecoration(labelText: 'Full Name', prefixIcon: Icon(Icons.person)),
-                validator: (value) => value == null || value.isEmpty ? 'Name required' : null,
+                decoration: InputDecoration(
+                  labelText: 'Full Name',
+                  prefixIcon: Icon(Icons.person),
+                ),
+                validator:
+                    (value) =>
+                        value == null || value.isEmpty ? 'Name required' : null,
               ),
               SizedBox(height: 16),
 
               // Email
               TextFormField(
                 controller: _emailController,
-                decoration: InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email)),
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: Icon(Icons.email),
+                ),
                 validator: (value) {
                   if (value == null || value.isEmpty) return 'Email required';
                   final pattern = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
@@ -461,15 +529,20 @@ class _SignupScreenState extends State<SignupScreen> {
                   prefixIcon: Icon(Icons.lock),
                   suffixIcon: IconButton(
                     icon: Icon(
-                        _isPasswordVisible ? Icons.visibility_off : Icons.visibility),
+                      _isPasswordVisible
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
                     onPressed: () {
                       setState(() => _isPasswordVisible = !_isPasswordVisible);
                     },
                   ),
                 ),
-                validator: (value) => value == null || value.length < 6
-                    ? 'Minimum 6 characters'
-                    : null,
+                validator:
+                    (value) =>
+                        value == null || value.length < 6
+                            ? 'Minimum 6 characters'
+                            : null,
               ),
               SizedBox(height: 16),
 
@@ -495,15 +568,15 @@ class _SignupScreenState extends State<SignupScreen> {
               _isLoading
                   ? Center(child: CircularProgressIndicator())
                   : ElevatedButton(
-                onPressed: _signup,
-                child: Text('Sign Up'),
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12.0),
+                    onPressed: _signup,
+                    child: Text('Sign Up'),
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.0),
+                      ),
+                    ),
                   ),
-                ),
-              ),
             ],
           ),
         ),
