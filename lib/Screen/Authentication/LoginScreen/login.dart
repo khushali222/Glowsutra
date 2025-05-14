@@ -26,7 +26,6 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _passwordError;
   bool _isPasswordVisible = false;
 
-  // LOGIN FUNCTION
   void _login() async {
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
@@ -37,91 +36,124 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     if (email.isEmpty) {
-      setState(() {
-        _emailError = 'Please enter your email or mobile number.';
-      });
+      setState(() => _emailError = 'Please enter your email or mobile number.');
     }
-
     if (password.isEmpty) {
-      setState(() {
-        _passwordError = 'Please enter your password.';
-      });
+      setState(() => _passwordError = 'Please enter your password.');
     }
+    if (_emailError != null || _passwordError != null) return;
 
-    if (_emailError != null || _passwordError != null) {
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     String? emailToUse;
+    bool userExists = false;
 
-    // Check if email is mobile number
-    if (RegExp(r"^[0-9]{10}$").hasMatch(email)) {
-      try {
-        final querySnapshot =
+    try {
+      // Mobile login
+      if (RegExp(r'^[0-9]{10}$').hasMatch(email)) {
+        final snapshot =
             await FirebaseFirestore.instance
                 .collection('User')
                 .where('mobile', isEqualTo: email)
                 .limit(1)
                 .get();
 
-        if (querySnapshot.docs.isEmpty) {
-          Fluttertoast.showToast(msg: 'No user found with this mobile number.');
-          setState(() => _isLoading = false);
+        if (snapshot.docs.isEmpty) {
+          setState(() {
+            _emailError = 'Mobile number not registered.';
+            Fluttertoast.showToast(msg: 'Mobile number not registered.');
+            _isLoading = false;
+          });
           return;
         }
-        emailToUse = querySnapshot.docs.first['email'];
-      } catch (e) {
-        Fluttertoast.showToast(msg: 'Failed to fetch user info.');
-        setState(() => _isLoading = false);
-        return;
-      }
-    } else {
-      // Assume it's an email
-      if (!RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$").hasMatch(email)) {
-        setState(() {
-          _emailError = 'Please enter a valid email address.';
-          _isLoading = false;
-        });
-        return;
-      }
-      emailToUse = email;
-    }
 
-    try {
+        emailToUse = snapshot.docs.first['email'];
+        userExists = true;
+      } else {
+        // Email login
+        if (!RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$").hasMatch(email)) {
+          setState(() {
+            _emailError = 'Please enter a valid email address.';
+            _isLoading = false;
+          });
+          return;
+        }
+
+        final snapshot =
+            await FirebaseFirestore.instance
+                .collection('User')
+                .where('email', isEqualTo: email)
+                .limit(1)
+                .get();
+
+        if (snapshot.docs.isEmpty) {
+          setState(() {
+            _emailError = 'Email not registered.';
+            Fluttertoast.showToast(msg: 'Email not registered.');
+            _isLoading = false;
+          });
+          return;
+        }
+
+        emailToUse = email;
+        userExists = true;
+      }
+
+      // Firebase Auth login
       await _auth.signInWithEmailAndPassword(
         email: emailToUse!,
         password: password,
       );
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('onboarding_complete', true);
+
       Fluttertoast.showToast(msg: 'Login successful');
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => HomePage()),
       );
     } on FirebaseAuthException catch (e) {
-      String errorMessage = 'An error occurred!';
+      print('FirebaseAuthException: code=${e.code}, message=${e.message}');
+      String errorMessage = 'Login failed.';
+
       switch (e.code) {
         case 'invalid-email':
           errorMessage = 'The email address is badly formatted.';
+          setState(() => _emailError = errorMessage);
           break;
+
         case 'user-disabled':
-          errorMessage = 'This user has been disabled.';
+          errorMessage = 'This user account has been disabled.';
           break;
+
         case 'user-not-found':
-          errorMessage = 'No user found. Please check your credentials.';
+          errorMessage = 'No account found for this email.';
+          setState(() => _emailError = errorMessage);
           break;
+
         case 'wrong-password':
           errorMessage = 'Incorrect password.';
+          setState(() => _passwordError = errorMessage);
           break;
+
+        case 'invalid-credential':
+          if (userExists) {
+            errorMessage = 'Incorrect password.';
+            setState(() => _passwordError = errorMessage);
+          } else {
+            errorMessage = 'Invalid login credentials.';
+          }
+          break;
+
         default:
-          errorMessage = e.message ?? 'Unknown error.';
+          errorMessage = e.message ?? 'Unexpected error occurred.';
       }
+
       Fluttertoast.showToast(msg: errorMessage);
+    } catch (e) {
+      print('Other error: $e');
+      Fluttertoast.showToast(msg: 'Something went wrong. Please try again.');
     } finally {
       setState(() => _isLoading = false);
     }

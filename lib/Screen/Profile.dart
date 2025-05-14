@@ -242,10 +242,157 @@
 //     );
 //   }
 // }
+// import 'package:cloud_firestore/cloud_firestore.dart';
+// import 'package:firebase_auth/firebase_auth.dart';
+// import 'package:flutter/material.dart';
+// import 'dart:io'; // For File image
+//
+// class Profile extends StatefulWidget {
+//   const Profile({super.key});
+//
+//   @override
+//   State<Profile> createState() => _ProfileState();
+// }
+//
+// class _ProfileState extends State<Profile> {
+//   final FirebaseAuth _auth = FirebaseAuth.instance;
+//   late User _user;
+//   late String name, email, mobile, profilePhotoUrl;
+//   bool _isLoading = true;
+//   File? _profileImage;
+//
+//   @override
+//   void initState() {
+//     super.initState();
+//     _user = _auth.currentUser!; // Get the current logged-in user
+//     _loadUserDetails();
+//   }
+//
+//   // Fetch user details from Firestore
+//   Future<void> _loadUserDetails() async {
+//     try {
+//       DocumentSnapshot userDoc = await FirebaseFirestore.instance
+//           .collection('User')
+//           .doc(_user.uid)
+//           .get();
+//
+//       if (userDoc.exists) {
+//         setState(() {
+//           name = userDoc['name'];
+//           email = userDoc['email'];
+//           mobile = userDoc['mobile'];
+//           profilePhotoUrl = userDoc['profile_photo'];
+//
+//           // Load the profile image if a URL exists
+//           if (profilePhotoUrl.isNotEmpty) {
+//             _profileImage = File(profilePhotoUrl);
+//           }
+//           _isLoading = false;
+//         });
+//       }
+//     } catch (e) {
+//       print("Error fetching user details: $e");
+//       setState(() {
+//         _isLoading = false;
+//       });
+//     }
+//   }
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(
+//         centerTitle: true,
+//         title: Text("User Profile"),
+//         backgroundColor: Colors.deepPurple[100],
+//       ),
+//       body: _isLoading
+//           ? Center(child: CircularProgressIndicator())
+//           : SingleChildScrollView(
+//         child: Column(
+//           children: [
+//             SizedBox(height: 10),
+//
+//             // Profile Picture
+//             Center(
+//               child: Padding(
+//                 padding: const EdgeInsets.only(top: 10),
+//                 child: CircleAvatar(
+//                   radius: 100,
+//                   backgroundColor: Colors.grey[300], // Optional background color
+//                   backgroundImage: _profileImage != null
+//                       ? FileImage(_profileImage!)
+//                       : (profilePhotoUrl.isNotEmpty
+//                       ? NetworkImage(profilePhotoUrl)
+//                       : null), // Show image from Firebase if available
+//                   child: _profileImage == null && profilePhotoUrl.isEmpty
+//                       ? Icon(Icons.person, size: 50, color: Colors.grey)
+//                       : null,
+//                 ),
+//               ),
+//             ),
+//
+//             Padding(
+//               padding: const EdgeInsets.all(20),
+//               child: Column(
+//                 children: [
+//                   _buildProfileDetail(Icons.person, "Name", name),
+//                   Divider(),
+//                   _buildProfileDetail(Icons.email, "Email", email),
+//                   Divider(),
+//                   _buildProfileDetail(Icons.phone, "Mobile Number", mobile),
+//                   Divider(),
+//                 ],
+//               ),
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+//
+//   Widget _buildProfileDetail(IconData icon, String title, String value) {
+//     return Container(
+//       padding: EdgeInsets.symmetric(
+//         vertical: 8,
+//         horizontal: 16,
+//       ),
+//       child: Row(
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: [
+//           Icon(icon, color: Colors.deepPurple.shade300, size: 30),
+//           const SizedBox(width: 15),
+//           Expanded(
+//             child: Column(
+//               crossAxisAlignment: CrossAxisAlignment.start,
+//               children: [
+//                 Text(
+//                   title,
+//                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+//                 ),
+//                 const SizedBox(height: 4),
+//                 Text(
+//                   value,
+//                   style: TextStyle(
+//                     fontSize: 16,
+//                     fontWeight: FontWeight.bold,
+//                     color: Colors.deepPurple.shade300,
+//                   ),
+//                   overflow: TextOverflow.visible,
+//                   softWrap: true,
+//                 ),
+//               ],
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+// }
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'dart:io'; // For File image
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -259,34 +406,32 @@ class _ProfileState extends State<Profile> {
   late User _user;
   late String name, email, mobile, profilePhotoUrl;
   bool _isLoading = true;
-  File? _profileImage;
 
   @override
   void initState() {
     super.initState();
-    _user = _auth.currentUser!; // Get the current logged-in user
+    _user = _auth.currentUser!;
     _loadUserDetails();
   }
 
-  // Fetch user details from Firestore
   Future<void> _loadUserDetails() async {
     try {
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('User')
-          .doc(_user.uid)
-          .get();
+      DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance
+              .collection('User')
+              .doc(_user.uid)
+              .get();
 
       if (userDoc.exists) {
         setState(() {
           name = userDoc['name'];
           email = userDoc['email'];
           mobile = userDoc['mobile'];
-          profilePhotoUrl = userDoc['profile_photo'];
-
-          // Load the profile image if a URL exists
-          if (profilePhotoUrl.isNotEmpty) {
-            _profileImage = File(profilePhotoUrl);
-          }
+          profilePhotoUrl = userDoc['profile_photo'] ?? '';
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
           _isLoading = false;
         });
       }
@@ -306,57 +451,83 @@ class _ProfileState extends State<Profile> {
         title: Text("User Profile"),
         backgroundColor: Colors.deepPurple[100],
       ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-        child: Column(
-          children: [
-            SizedBox(height: 10),
-
-            // Profile Picture
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: CircleAvatar(
-                  radius: 100,
-                  backgroundColor: Colors.grey[300], // Optional background color
-                  backgroundImage: _profileImage != null
-                      ? FileImage(_profileImage!)
-                      : (profilePhotoUrl.isNotEmpty
-                      ? NetworkImage(profilePhotoUrl)
-                      : null), // Show image from Firebase if available
-                  child: _profileImage == null && profilePhotoUrl.isEmpty
-                      ? Icon(Icons.person, size: 50, color: Colors.grey)
-                      : null,
+      body:
+          _isLoading
+              ? Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                child: Column(
+                  children: [
+                    SizedBox(height: 10),
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child:
+                            profilePhotoUrl.isNotEmpty
+                                ? CachedNetworkImage(
+                                  imageUrl: profilePhotoUrl.replaceFirst(
+                                    'upload/',
+                                    'upload/w_200,h_200,c_fill,f_auto,q_auto/',
+                                  ),
+                                  imageBuilder:
+                                      (context, imageProvider) => CircleAvatar(
+                                        radius: 100,
+                                        backgroundImage: imageProvider,
+                                        backgroundColor: Colors.grey[300],
+                                      ),
+                                  placeholder:
+                                      (context, url) => CircleAvatar(
+                                        radius: 100,
+                                        backgroundColor: Colors.grey[300],
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                  errorWidget:
+                                      (context, url, error) => CircleAvatar(
+                                        radius: 100,
+                                        backgroundColor: Colors.grey[300],
+                                        child: Icon(
+                                          Icons.error,
+                                          size: 50,
+                                          color: Colors.red,
+                                        ),
+                                      ),
+                                )
+                                : CircleAvatar(
+                                  radius: 100,
+                                  backgroundColor: Colors.grey[300],
+                                  child: Icon(
+                                    Icons.person,
+                                    size: 50,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        children: [
+                          _buildProfileDetail(Icons.person, "Name", name),
+                          Divider(),
+                          _buildProfileDetail(Icons.email, "Email", email),
+                          Divider(),
+                          _buildProfileDetail(
+                            Icons.phone,
+                            "Mobile Number",
+                            mobile,
+                          ),
+                          Divider(),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  _buildProfileDetail(Icons.person, "Name", name),
-                  Divider(),
-                  _buildProfileDetail(Icons.email, "Email", email),
-                  Divider(),
-                  _buildProfileDetail(Icons.phone, "Mobile Number", mobile),
-                  Divider(),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
   Widget _buildProfileDetail(IconData icon, String title, String value) {
     return Container(
-      padding: EdgeInsets.symmetric(
-        vertical: 8,
-        horizontal: 16,
-      ),
+      padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -69,6 +69,7 @@ dependencies:
   change_app_package_name:
   firebase_auth: ^5.5.3
   firebase_storage: ^12.4.5
+  cached_network_image:
 
 
 

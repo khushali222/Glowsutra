@@ -225,10 +225,12 @@ class _DashboardState extends State<Dashboard> {
           snapshot.data()!['glasscount'] != null) {
         currentGlasses = snapshot.data()!['glasscount'] as int;
       }
-      setState(() {
-        totalGlasses = currentGlasses;
-        // print(totalGlasses);
-      });
+      if (mounted) {
+        setState(() {
+          totalGlasses = currentGlasses;
+          // print(totalGlasses);
+        });
+      }
 
       // Update in Firestore
     } catch (e) {
