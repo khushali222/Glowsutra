@@ -558,6 +558,8 @@ class _DashboardState extends State<Dashboard> {
                                     todaysReminders.map((entry) {
                                       DateTime reminderDate = entry.key;
                                       String reminderText = entry.value;
+                                      String formattedDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(reminderDate);
+                                      print("date time $reminderDate");
                                       return Container(
                                         margin: EdgeInsets.symmetric(
                                           vertical: 6,
@@ -595,6 +597,7 @@ class _DashboardState extends State<Dashboard> {
                                               color: Colors.white,
                                             ),
                                           ),
+                                          //subtitle: Text(reminderDate.toString(),style: TextStyle(color: Colors.grey),),
                                           title: Text(
                                             reminderText,
                                             style: TextStyle(
@@ -607,6 +610,7 @@ class _DashboardState extends State<Dashboard> {
                                               size: 18,
                                               color: Colors.red,
                                             ),
+
                                             onPressed: () async {
                                               await _removeReminder(
                                                 reminderDate,

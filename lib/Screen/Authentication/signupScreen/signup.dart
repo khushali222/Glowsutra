@@ -295,6 +295,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -342,7 +343,7 @@ class _SignupScreenState extends State<SignupScreen> {
     );
 
     if (result != null) {
-      final compressedFile = File(result.path); // ✅ Convert XFile to File
+      final compressedFile = File(result.path);
       print("Compressed size: ${await compressedFile.length() / 1024} KB");
       return compressedFile;
     }
@@ -350,11 +351,10 @@ class _SignupScreenState extends State<SignupScreen> {
     return null;
   }
 
-  // Pick and compress image
   Future<void> _pickImage() async {
     final pickedFile = await ImagePicker().pickImage(
       source: ImageSource.gallery,
-      imageQuality: 100, // pick full quality; we’ll compress it ourselves
+      imageQuality: 100,
     );
 
     if (pickedFile != null) {
@@ -364,22 +364,8 @@ class _SignupScreenState extends State<SignupScreen> {
         _selectedImage = compressed ?? originalFile;
       });
     }
-    String? imageUrl = await _uploadToCloudinary(_selectedImage!);
   }
 
-  // Pick image from gallery
-  // Future<void> _pickImage() async {
-  //   final pickedFile =
-  //   await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 75);
-  //
-  //   if (pickedFile != null) {
-  //     setState(() {
-  //       _selectedImage = File(pickedFile.path);
-  //     });
-  //   }
-  // }
-
-  // Upload image to Cloudinary
   Future<String?> _uploadToCloudinary(File imageFile) async {
     const cloudName = 'doinw37vn';
     const uploadPreset = 'glowsutra_image_preset';
@@ -396,20 +382,17 @@ class _SignupScreenState extends State<SignupScreen> {
           );
 
     final response = await request.send();
-    print("reponce $response");
-    print("url $url");
+
     if (response.statusCode == 200) {
       final responseData = await response.stream.bytesToString();
       final result = json.decode(responseData);
-      print(" result $result");
-      return result['secure_url']; // Cloudinary image URL
+      return result['secure_url'];
     } else {
       Fluttertoast.showToast(msg: 'Image upload failed');
       return null;
     }
   }
 
-  // Validate and signup
   void _signup() async {
     if (_formKey.currentState?.validate() ?? false) {
       if (_selectedImage == null) {
@@ -420,23 +403,42 @@ class _SignupScreenState extends State<SignupScreen> {
       setState(() => _isLoading = true);
 
       try {
-        String? imageUrl = await _uploadToCloudinary(_selectedImage!);
-        if (imageUrl == null) return;
+        // Check if mobile number already exists in Firestore
+        QuerySnapshot mobileQuery =
+            await FirebaseFirestore.instance
+                .collection('User')
+                .where('mobile', isEqualTo: _mobileController.text.trim())
+                .get();
 
+        if (mobileQuery.docs.isNotEmpty) {
+          Fluttertoast.showToast(msg: 'Mobile number already in use');
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        // Attempt Firebase Authentication signup (checks email)
         UserCredential userCredential = await _auth
             .createUserWithEmailAndPassword(
-              email: _emailController.text,
-              password: _passwordController.text,
+              email: _emailController.text.trim(),
+              password: _passwordController.text.trim(),
             );
 
+        // Only upload image after email and mobile are valid
+        String? imageUrl = await _uploadToCloudinary(_selectedImage!);
+        if (imageUrl == null) {
+          Fluttertoast.showToast(msg: 'Image upload failed');
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        // Store user data in Firestore
         await FirebaseFirestore.instance
             .collection('User')
             .doc(userCredential.user?.uid)
             .set({
-              'name': _nameController.text,
-              'email': _emailController.text,
-              'mobile': _mobileController.text,
-              'password': _passwordController.text,
+              'name': _nameController.text.trim(),
+              'email': _emailController.text.trim(),
+              'mobile': _mobileController.text.trim(),
               'profile_photo': imageUrl,
             });
 
@@ -447,34 +449,69 @@ class _SignupScreenState extends State<SignupScreen> {
           (Route<dynamic> route) => false,
         );
       } on FirebaseAuthException catch (e) {
-        Fluttertoast.showToast(msg: e.message ?? 'Signup failed');
+        Fluttertoast.showToast(msg: '${e.message ?? "Unknown error"}');
+      } catch (e) {
+        Fluttertoast.showToast(msg: 'Something went wrong: ${e.toString()}');
       } finally {
         setState(() => _isLoading = false);
       }
+    } else {
+      setState(() {
+        _autoValidateMode = AutovalidateMode.onUserInteraction;
+      });
     }
   }
 
+  InputDecoration _inputDecoration(String hint, IconData icon) {
+    OutlineInputBorder borderStyle = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: Colors.grey),
+    );
+
+    return InputDecoration(
+      hintText: hint,
+      prefixIcon: Icon(icon),
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: EdgeInsets.symmetric(vertical: 18.0, horizontal: 16.0),
+      border: borderStyle,
+      enabledBorder: borderStyle,
+      focusedBorder: borderStyle,
+      errorBorder: borderStyle.copyWith(
+        borderSide: BorderSide(color: Colors.grey),
+      ),
+      focusedErrorBorder: borderStyle.copyWith(
+        borderSide: BorderSide(color: Colors.grey),
+      ),
+
+      // Optional: prevent layout shift due to error text
+      errorStyle: TextStyle(height: 0), // Hides error message but keeps spacing
+    );
+  }
+
+  AutovalidateMode _autoValidateMode = AutovalidateMode.disabled;
   @override
   Widget build(BuildContext context) {
     Color deepPurpleShade100 = Color(0xFFD1C4E9);
     return Scaffold(
+      backgroundColor: Colors.deepPurple.shade50,
       appBar: AppBar(
         title: Text('Sign Up'),
         backgroundColor: deepPurpleShade100,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
-          child: ListView(
+          autovalidateMode: _autoValidateMode,
+          child: Column(
             children: [
-              // Profile image selector
               Center(
                 child: GestureDetector(
                   onTap: _pickImage,
                   child: CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.grey[300],
+                    radius: 60,
+                    backgroundColor: Colors.grey.shade300,
                     backgroundImage:
                         _selectedImage != null
                             ? FileImage(_selectedImage!)
@@ -484,96 +521,104 @@ class _SignupScreenState extends State<SignupScreen> {
                             ? Icon(
                               Icons.camera_alt,
                               size: 40,
-                              color: Colors.white,
+                              color: Colors.grey.shade700,
                             )
                             : null,
                   ),
                 ),
               ),
-              SizedBox(height: 20),
+              SizedBox(height: 30),
 
               // Name
-              TextFormField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: 'Full Name',
-                  prefixIcon: Icon(Icons.person),
+              Container(
+                child: TextFormField(
+
+                  controller: _nameController,
+                  decoration: _inputDecoration('Full Name', Icons.person),
+                  validator:
+                      (value) =>
+                          value == null || value.isEmpty
+                              ? 'Name required'
+                              : null,
                 ),
-                validator:
-                    (value) =>
-                        value == null || value.isEmpty ? 'Name required' : null,
               ),
               SizedBox(height: 16),
-
               // Email
-              TextFormField(
-                controller: _emailController,
-                decoration: InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email),
+              Container(
+                child: TextFormField(
+                  controller: _emailController,
+                  decoration: _inputDecoration('Email', Icons.email),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Email required';
+                    final pattern = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                    return pattern.hasMatch(value) ? null : 'Invalid email';
+                  },
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) return 'Email required';
-                  final pattern = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-                  return pattern.hasMatch(value) ? null : 'Invalid email';
-                },
               ),
               SizedBox(height: 16),
 
               // Password
-              TextFormField(
-                controller: _passwordController,
-                obscureText: !_isPasswordVisible,
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  prefixIcon: Icon(Icons.lock),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _isPasswordVisible
-                          ? Icons.visibility_off
-                          : Icons.visibility,
+              Container(
+                child: TextFormField(
+                  controller: _passwordController,
+                  obscureText: !_isPasswordVisible,
+                  decoration: _inputDecoration('Password', Icons.lock).copyWith(
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isPasswordVisible
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                      onPressed: () {
+                        setState(
+                          () => _isPasswordVisible = !_isPasswordVisible,
+                        );
+                      },
                     ),
-                    onPressed: () {
-                      setState(() => _isPasswordVisible = !_isPasswordVisible);
-                    },
                   ),
+                  validator:
+                      (value) =>
+                          value == null || value.length < 6
+                              ? 'Minimum 6 characters'
+                              : null,
                 ),
-                validator:
-                    (value) =>
-                        value == null || value.length < 6
-                            ? 'Minimum 6 characters'
-                            : null,
               ),
               SizedBox(height: 16),
 
               // Mobile
-              TextFormField(
-                controller: _mobileController,
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
-                  labelText: 'Mobile Number',
-                  prefixIcon: Icon(Icons.phone),
+              Container(
+                child: TextFormField(
+                  controller: _mobileController,
+                  keyboardType: TextInputType.phone,
+                  decoration: _inputDecoration('Mobile Number', Icons.phone),
+                  inputFormatters: [LengthLimitingTextInputFormatter(10)],
+                  validator: (value) {
+                    if (value == null || value.isEmpty)
+                      return 'Mobile required';
+                    return RegExp(r'^[0-9]{10}$').hasMatch(value)
+                        ? null
+                        : 'Enter valid 10-digit number';
+                  },
                 ),
-                inputFormatters: [LengthLimitingTextInputFormatter(10)],
-                validator: (value) {
-                  if (value == null || value.isEmpty) return 'Mobile required';
-                  return RegExp(r'^[0-9]{10}$').hasMatch(value)
-                      ? null
-                      : 'Enter valid 10-digit number';
-                },
               ),
-              SizedBox(height: 24),
+              SizedBox(height: 30),
 
-              // Signup button
               _isLoading
-                  ? Center(child: CircularProgressIndicator())
-                  : ElevatedButton(
-                    onPressed: _signup,
-                    child: Text('Sign Up'),
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.0),
+                  ? SpinKitCircle(color: Colors.black)
+                  : SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _signup,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: deepPurpleShade100,
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'Sign Up',
+                        style: TextStyle(fontSize: 16, color: Colors.black87),
                       ),
                     ),
                   ),

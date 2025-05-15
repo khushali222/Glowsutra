@@ -393,6 +393,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+
+import 'Authentication/LoginScreen/login.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -442,7 +446,19 @@ class _ProfileState extends State<Profile> {
       });
     }
   }
-
+  Future<void> _logout() async {
+    try {
+      await _auth.signOut();
+      Fluttertoast.showToast(msg: 'Logged out successfully');
+      // Navigate to login screen after logout
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+      );
+    } catch (e) {
+      Fluttertoast.showToast(msg: 'Failed to log out: $e');
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -453,7 +469,7 @@ class _ProfileState extends State<Profile> {
       ),
       body:
           _isLoading
-              ? Center(child: CircularProgressIndicator())
+              ? Center(child: SpinKitCircle(color: Colors.black))
               : SingleChildScrollView(
                 child: Column(
                   children: [
@@ -478,7 +494,9 @@ class _ProfileState extends State<Profile> {
                                       (context, url) => CircleAvatar(
                                         radius: 100,
                                         backgroundColor: Colors.grey[300],
-                                        child: CircularProgressIndicator(),
+                                        child: SpinKitCircle(
+                                          color: Colors.black,
+                                        ),
                                       ),
                                   errorWidget:
                                       (context, url, error) => CircleAvatar(
@@ -514,6 +532,14 @@ class _ProfileState extends State<Profile> {
                             Icons.phone,
                             "Mobile Number",
                             mobile,
+                          ),
+                          Divider(),
+                          GestureDetector(
+                            onTap: _logout,
+                            child: ListTile(
+                              leading: Icon(Icons.logout,color: Colors.deepPurple.shade300, size: 30),
+                              title: Text("Log out"),
+                            ),
                           ),
                           Divider(),
                         ],
