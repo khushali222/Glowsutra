@@ -528,11 +528,9 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
               ),
               SizedBox(height: 30),
-
               // Name
               Container(
                 child: TextFormField(
-
                   controller: _nameController,
                   decoration: _inputDecoration('Full Name', Icons.person),
                   validator:

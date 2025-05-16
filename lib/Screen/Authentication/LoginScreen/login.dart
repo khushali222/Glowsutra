@@ -526,8 +526,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     return null;
                   },
                 ),
-
-
                 const SizedBox(height: 16),
                 Row(
                   children: [

@@ -143,16 +143,18 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
   // final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
   //     FlutterLocalNotificationsPlugin();
   bool notificationsEnabled = false;
-  String selectedReminder = "None"; // Default: No reminders
+  String selectedReminder = "Daily"; // Default: No reminders
 
   @override
   void initState() {
     super.initState();
     tz.initializeTimeZones();
+    _checkAndDisableOldReminders();
     _initNotifications();
+
     _loadWaterIntake();
     WidgetsBinding.instance.addObserver(this);
-    _loadNotificationPreferences();
+    // _loadNotificationPreferences();
     _fetchAndSaveDeviceId();
   }
 
@@ -243,18 +245,41 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
 
   Future<void> _loadNotificationPreferences() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    DocumentSnapshot<Map<String, dynamic>> snapshot =
+        await FirebaseFirestore.instance
+            .collection("User")
+            .doc("fireid")
+            .collection("waterGlasess")
+            .doc(userId)
+            .get();
+
+    bool enablenoti = false;
+    if (snapshot.exists &&
+        snapshot.data() != null &&
+        snapshot.data()!['notificationsEnabled'] != null) {
+      enablenoti = snapshot.data()!['notificationsEnabled'];
+    }
     setState(() {
-      notificationsEnabled = prefs.getBool('notifications_enabled') ?? false;
+      notificationsEnabled = enablenoti;
       selectedReminder = prefs.getString('reminder_type') ?? "None";
     });
+    print("Notification load $notificationsEnabled");
   }
 
   Future<void> _saveNotificationPreferences() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(
-      'notifications_enabled',
-      notificationsEnabled,
-    ); //  use the right key!
+    await prefs.setBool('notifications_enabled', notificationsEnabled);
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    await FirebaseFirestore.instance
+        .collection("User")
+        .doc("fireid")
+        .collection("waterGlasess")
+        .doc(userId)
+        .set({
+          "notificationsEnabled": notificationsEnabled,
+          "notificationsEnabledAt": Timestamp.fromDate(DateTime.now()),
+        }, SetOptions(merge: true)); //  use the right key!
     await prefs.setString('reminder_type', selectedReminder);
   }
 
@@ -337,6 +362,127 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     print("notification with payload time: $payload");
   }
 
+  // void _toggleNotifications(bool value) async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   List<String> waterList =
+  //       prefs.getStringList('saved_notification_ids') ?? [];
+  //   print("water list $waterList");
+  //
+  //   setState(() {
+  //     notificationsEnabled = value;
+  //   });
+  //
+  //   prefs.setBool('notificationsEnabled', notificationsEnabled);
+  //
+  //   if (notificationsEnabled && selectedReminder != "None") {
+  //     bool alreadyScheduled = prefs.getBool('alreadyScheduled') ?? false;
+  //     if (!alreadyScheduled) {
+  //       // Optional: cancel previously saved notifications first
+  //       for (String id in waterList) {
+  //         await flutterLocalNotificationsPlugin.cancel(int.parse(id));
+  //       }
+  //
+  //       _scheduleNotifications(_getDaysFromReminder(selectedReminder));
+  //       prefs.setBool('alreadyScheduled', true);
+  //     }
+  //   }
+  //   else {
+  //     // Disable notifications
+  //     prefs.setBool('alreadyScheduled', false);
+  //
+  //     if (waterList.isNotEmpty) {
+  //       for (String id in waterList) {
+  //         await flutterLocalNotificationsPlugin.cancel(int.parse(id));
+  //       }
+  //
+  //       // Optionally clear the saved IDs
+  //       await prefs.remove('saved_notification_ids');
+  //     }
+  //
+  //     // Safely show snackbar only if widget is still mounted
+  //     if (mounted) {
+  //       ScaffoldMessenger.of(
+  //         context,
+  //       ).showSnackBar(SnackBar(content: Text("Notifications Disabled!")));
+  //     }
+  //   }
+  //   _saveNotificationPreferences();
+  // }
+  // void _toggleNotifications(bool value) async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   List<String> waterList =
+  //       prefs.getStringList('saved_notification_ids') ?? [];
+  //
+  //   setState(() {
+  //     notificationsEnabled = value;
+  //   });
+  //
+  //   // Save notificationsEnabled state locally
+  //   await prefs.setBool('notificationsEnabled', notificationsEnabled);
+  //
+  //   final userId = FirebaseAuth.instance.currentUser?.uid;
+  //   if (userId == null) {
+  //     print("No user logged in.");
+  //     return;
+  //   }
+  //
+  //   final now = DateTime.now();
+  //
+  //   if (notificationsEnabled ) {
+  //     // Cancel previously scheduled notifications first to avoid duplicates
+  //     for (String id in waterList) {
+  //       await flutterLocalNotificationsPlugin.cancel(int.parse(id));
+  //     }
+  //     waterList.clear();
+  //
+  //     // Schedule notifications for today only (dayOffset = 0)
+  //     _scheduleNotifications(_getDaysFromReminder(selectedReminder));
+  //
+  //     // Save "notifications enabled" state with timestamp to Firestore
+  //     await FirebaseFirestore.instance
+  //         .collection("User")
+  //         .doc("fireid")
+  //         .collection("waterGlasess")
+  //         .doc(userId)
+  //         .set({
+  //           "notificationsEnabled": true,
+  //           "notificationsEnabledAt": Timestamp.fromDate(now),
+  //         }, SetOptions(merge: true));
+  //
+  //     // Save notification IDs locally
+  //     await prefs.setStringList('saved_notification_ids', waterList);
+  //
+  //     print("Notifications enabled for today.");
+  //   } else {
+  //     // User disabled notifications
+  //     print(waterList);
+  //     for (String id in waterList) {
+  //       await flutterLocalNotificationsPlugin.cancel(int.parse(id));
+  //     }
+  //     await prefs.remove('saved_notification_ids');
+  //
+  //     // Update Firestore that notifications are disabled
+  //     await FirebaseFirestore.instance
+  //         .collection("User")
+  //         .doc("fireid")
+  //         .collection("waterGlasess")
+  //         .doc(userId)
+  //         .set({
+  //           "notificationsEnabled": false,
+  //           "notificationsEnabledAt":  Timestamp.fromDate(now),
+  //         }, SetOptions(merge: true));
+  //
+  //     if (mounted) {
+  //       ScaffoldMessenger.of(
+  //         context,
+  //       ).showSnackBar(SnackBar(content: Text("Notifications Disabled!")));
+  //     }
+  //
+  //     print("Notifications disabled and all canceled.");
+  //   }
+  //
+  //   _saveNotificationPreferences();
+  // }
   void _toggleNotifications(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     List<String> waterList =
@@ -397,28 +543,30 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     }
   }
 
-  void _scheduleNotifications(int days) {
+  Future<void> _scheduleNotifications(int days) async {
     // flutterLocalNotificationsPlugin.cancelAll();
+    final prefs = await SharedPreferences.getInstance();
+    List<String> savedIds = [];
+
     final List<int> reminderHours = [
-      9,
-      10,
-      11,
       12,
       13,
       14,
-      15,
-      16,
-      17,
-      18,
-      19,
-      20,
-      21,
+
+      // 15,
+      // 16,
     ];
-    final List<int> reminderMinutes = [0];
+    final List<int> reminderMinutes = [
+      9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+    ];
+
     for (int day = 0; day < days; day++) {
       for (int hour in reminderHours) {
         for (int minute in reminderMinutes) {
-          _scheduleNotification(day, hour, minute);
+          int id = day * 10000 + hour * 100 + minute;
+          print("schedule");
+          savedIds.add(id.toString());
+          _scheduleNotification(day, hour, minute, id);
         }
       }
     }
@@ -454,6 +602,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     int dayOffset,
     int hour,
     int minute,
+    int id,
   ) async {
     final now = DateTime.now();
     DateTime scheduledTime = DateTime(
@@ -515,6 +664,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     if (!existingIds.contains(id.toString())) {
       existingIds.add(id.toString());
       await prefs.setStringList('saved_notification_ids', existingIds);
+      print(existingIds);
     }
 
     try {
@@ -622,10 +772,100 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     super.dispose();
   }
 
+  Future<void> _checkAndDisableOldReminders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    // final prefs = await SharedPreferences.getInstance();
+    List<String> waterList =
+        prefs.getStringList('saved_notification_ids') ?? [];
+    print("water list $waterList");
+    if (userId == null) return;
+
+    final doc =
+        await FirebaseFirestore.instance
+            .collection("User")
+            .doc("fireid")
+            .collection("waterGlasess")
+            .doc(userId)
+            .get();
+
+    if (!doc.exists) return;
+
+    final data = doc.data();
+    if (data == null) return;
+
+    bool notificationsEnabledFirestore = data['notificationsEnabled'] ?? false;
+    Timestamp? enabledAtTimestamp = data['notificationsEnabledAt'];
+
+    if (notificationsEnabledFirestore && enabledAtTimestamp != null) {
+      DateTime enabledAt = enabledAtTimestamp.toDate();
+      DateTime now = DateTime.now();
+
+      bool sameDay =
+          enabledAt.year == now.year &&
+          enabledAt.month == now.month &&
+          enabledAt.day == now.day;
+
+      if (!sameDay) {
+        // Notifications were enabled on a previous day - auto disable now
+
+        if (notificationsEnabled && selectedReminder != "None") {
+          bool alreadyScheduled = prefs.getBool('alreadyScheduled') ?? false;
+          if (!alreadyScheduled) {
+            // Optional: cancel previously saved notifications first
+            for (String id in waterList) {
+              await flutterLocalNotificationsPlugin.cancel(int.parse(id));
+            }
+
+            _scheduleNotifications(_getDaysFromReminder(selectedReminder));
+            prefs.setBool('alreadyScheduled', true);
+          }
+        } else {
+          // Disable notifications
+          prefs.setBool('alreadyScheduled', false);
+
+          if (waterList.isNotEmpty) {
+            for (String id in waterList) {
+              await flutterLocalNotificationsPlugin.cancel(int.parse(id));
+            }
+
+            // Optionally clear the saved IDs
+            await prefs.remove('saved_notification_ids');
+          }
+
+          // Safely show snackbar only if widget is still mounted
+        }
+
+        await FirebaseFirestore.instance
+            .collection("User")
+            .doc("fireid")
+            .collection("waterGlasess")
+            .doc(userId)
+            .set({
+              "notificationsEnabled": false,
+              "notificationsEnabledAt": Timestamp.fromDate(now),
+            }, SetOptions(merge: true));
+
+        if (mounted) {
+          setState(() {
+            notificationsEnabled = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Daily reminders expired, please enable again."),
+            ),
+          );
+        }
+      }
+    }
+    _loadNotificationPreferences();
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _loadWaterIntake(); // Reload when app comes to foreground
+      _loadWaterIntake();
+      _checkAndDisableOldReminders(); // Reload when app comes to foreground
     }
   }
 
@@ -774,42 +1014,55 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
                 ],
               ),
               SizedBox(height: 10),
+              // Row(
+              //   children: [
+              //     Container(
+              //       padding: EdgeInsets.symmetric(horizontal: 16),
+              //       decoration: BoxDecoration(
+              //         color: Colors.deepPurple[50],
+              //         borderRadius: BorderRadius.circular(12),
+              //       ),
+              //       child: DropdownButtonHideUnderline(
+              //         child: DropdownButton<String>(
+              //           value: selectedReminder,
+              //           onChanged: (String? newValue) {
+              //             setState(() {
+              //               selectedReminder = newValue!;
+              //             });
+              //             if (notificationsEnabled) _toggleNotifications(true);
+              //             _saveNotificationPreferences();
+              //           },
+              //           items:
+              //               [
+              //                 "None",
+              //                 "Daily",
+              //                 "Weekly",
+              //                 "Monthly",
+              //               ].map<DropdownMenuItem<String>>((String value) {
+              //                 return DropdownMenuItem<String>(
+              //                   value: value,
+              //                   child: Text(value),
+              //                 );
+              //               }).toList(),
+              //         ),
+              //       ),
+              //     ),
+              //   ],
+              // ),
+              // Dropdown
               Row(
                 children: [
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.deepPurple[50],
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: selectedReminder,
-                        onChanged: (String? newValue) {
-                          setState(() {
-                            selectedReminder = newValue!;
-                          });
-                          if (notificationsEnabled) _toggleNotifications(true);
-                          _saveNotificationPreferences();
-                        },
-                        items:
-                            [
-                              "None",
-                              "Daily",
-                              "Weekly",
-                              "Monthly",
-                            ].map<DropdownMenuItem<String>>((String value) {
-                              return DropdownMenuItem<String>(
-                                value: value,
-                                child: Text(value),
-                              );
-                            }).toList(),
+                  Expanded(
+                    child: Text(
+                      "Note: Make sure to enable daily reminders every day to stay notified.",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black54,
                       ),
                     ),
                   ),
                 ],
               ),
-              // Dropdown
             ],
           ),
         ),
