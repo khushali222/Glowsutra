@@ -403,7 +403,6 @@ class _DashboardState extends State<Dashboard> {
                             ),
                           ),
                           SizedBox(height: 15),
-
                           // Hydration Card
                           Padding(
                             padding: const EdgeInsets.only(left: 6, right: 6),
@@ -527,7 +526,6 @@ class _DashboardState extends State<Dashboard> {
                               ),
                             ),
                           ),
-
                           // Today's Reminder Header
                           SizedBox(height: 20),
                           Padding(
@@ -548,7 +546,6 @@ class _DashboardState extends State<Dashboard> {
                               ],
                             ),
                           ),
-
                           // Reminder Cards
                           if (todaysReminders.isNotEmpty)
                             Padding(
@@ -558,7 +555,9 @@ class _DashboardState extends State<Dashboard> {
                                     todaysReminders.map((entry) {
                                       DateTime reminderDate = entry.key;
                                       String reminderText = entry.value;
-                                      String formattedDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(reminderDate);
+                                      String formattedDate = DateFormat(
+                                        'yyyy-MM-dd HH:mm:ss',
+                                      ).format(reminderDate);
                                       print("date time $reminderDate");
                                       return Container(
                                         margin: EdgeInsets.symmetric(
@@ -631,7 +630,6 @@ class _DashboardState extends State<Dashboard> {
                                 style: TextStyle(color: Colors.grey),
                               ),
                             ),
-
                           SizedBox(height: 8),
                           // Feature Cards Grid
                           Padding(

@@ -151,7 +151,6 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     tz.initializeTimeZones();
     _checkAndDisableOldReminders();
     _initNotifications();
-
     _loadWaterIntake();
     WidgetsBinding.instance.addObserver(this);
     // _loadNotificationPreferences();
@@ -549,17 +548,21 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     List<String> savedIds = [];
 
     final List<int> reminderHours = [
+      9,
+      10,
+      11,
       12,
       13,
       14,
-
-      // 15,
-      // 16,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
     ];
-    final List<int> reminderMinutes = [
-      9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-    ];
-
+    final List<int> reminderMinutes = [0];
     for (int day = 0; day < days; day++) {
       for (int hour in reminderHours) {
         for (int minute in reminderMinutes) {
