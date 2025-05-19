@@ -13,7 +13,7 @@ void main() async {
   runApp(
     // MyApp(),
     DevicePreview(
-      enabled: false,
+      enabled: true,
       tools: [...DevicePreview.defaultTools],
       builder: (context) => MyApp(),
     ),

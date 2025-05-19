@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'Authentication/LoginScreen/login.dart';
+import 'Water_intakescreen.dart';
 import 'home.dart';
 import 'onborading_screen.dart';
 
@@ -22,6 +23,34 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _opacityAnimation;
   late Animation<double> _scaleAnimation;
 
+  @override
+  void initState() {
+    super.initState();
+    _fetchAndSaveDeviceId();
+    // Initializing the animation controller
+    _controller = AnimationController(
+      duration: const Duration(seconds: 3), // Duration for the animation
+      vsync: this,
+    );
+
+    // Fade-in animation for the "Your skin care companion" text
+    _opacityAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
+
+    // Scale animation for the "Your skin care companion" text
+    _scaleAnimation = Tween<double>(
+      begin: 0.8,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+
+    // Start the animation
+    _controller.forward();
+    resetIfNeeded();
+    _checkAndDisableOldReminders();
+    _navigate();
+  }
   Future<void> resetIfNeeded() async {
     print("Calling reset");
     final prefs = await SharedPreferences.getInstance();
@@ -139,34 +168,109 @@ class _SplashScreenState extends State<SplashScreen>
     return "unknown_device_id";
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchAndSaveDeviceId();
-    // Initializing the animation controller
-    _controller = AnimationController(
-      duration: const Duration(seconds: 3), // Duration for the animation
-      vsync: this,
-    );
+  // Future<void> _checkNotificationStatus() async {
+  //   SharedPreferences prefs = await SharedPreferences.getInstance();
+  //
+  //   // Check if notifications are enabled
+  //   bool notificationsEnabled = prefs.getBool('notifications_enabled') ?? false;
+  //
+  //   // Get the timestamp string
+  //   String? enabledAtStr = prefs.getString('notifications_enabled_at');
+  //
+  //   if (notificationsEnabled && enabledAtStr != null) {
+  //     DateTime enabledAt = DateTime.parse(enabledAtStr);
+  //     Duration timeSinceEnabled = DateTime.now().difference(enabledAt);
+  //
+  //     print("Notifications were enabled at: $enabledAt");
+  //     print("Time since enabled: ${timeSinceEnabled.inHours} hours");
+  //
+  //     if (timeSinceEnabled.inHours >= 24) {
+  //       print("Disabling old notifications...");
+  //       await prefs.setBool('notifications_enabled', false);
+  //       await prefs.remove('notifications_enabled_at');
+  //
+  //       // If you store notification IDs, you can also cancel them here
+  //       // flutterLocalNotificationsPlugin.cancelAll(); // if plugin is initialized
+  //
+  //
+  //     }
+  //   }
+  // }
+  Future<void> _checkAndDisableOldReminders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = FirebaseAuth.instance.currentUser?.uid;
 
-    // Fade-in animation for the "Your skin care companion" text
-    _opacityAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
+    if (userId == null) return;
 
-    // Scale animation for the "Your skin care companion" text
-    _scaleAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    final doc = await FirebaseFirestore.instance
+        .collection("User")
+        .doc("fireid")
+        .collection("waterGlasess")
+        .doc(userId)
+        .get();
 
-    // Start the animation
-    _controller.forward();
-    resetIfNeeded();
-    // Navigate to the next screen after a delay
-    _navigate();
+    if (!doc.exists) return;
+
+    final data = doc.data();
+    if (data == null) return;
+
+    bool notificationsEnabledFirestore = data['notificationsEnabled'] ?? false;
+    Timestamp? enabledAtTimestamp = data['notificationsEnabledAt'];
+    List<String> waterList = prefs.getStringList('saved_notification_ids') ?? [];
+
+    if (notificationsEnabledFirestore && enabledAtTimestamp != null) {
+      DateTime enabledAt = enabledAtTimestamp.toDate();
+      DateTime now = DateTime.now();
+
+      bool sameDay =
+          enabledAt.year == now.year &&
+              enabledAt.month == now.month &&
+              enabledAt.day == now.day;
+
+      if (!sameDay) {
+        // It's a new day - disable everything
+
+        // Cancel all scheduled notifications
+        if (waterList.isNotEmpty) {
+          for (String id in waterList) {
+            await flutterLocalNotificationsPlugin.cancel(int.tryParse(id) ?? 0);
+          }
+          await prefs.remove('saved_notification_ids');
+        }
+
+        // Reset flags in SharedPreferences
+        await prefs.setBool('notifications_enabled', false);
+        await prefs.setBool('alreadyScheduled', false);
+
+        // Update Firestore
+        await FirebaseFirestore.instance
+            .collection("User")
+            .doc("fireid")
+            .collection("waterGlasess")
+            .doc(userId)
+            .set({
+          "notificationsEnabled": false,
+          "notificationsEnabledAt": Timestamp.fromDate(now),
+        }, SetOptions(merge: true));
+
+        // Update UI state
+        if (mounted) {
+          setState(() {
+            notificationsEnabledFirestore = false;
+          });
+
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text("Daily reminders expired, please enable again."),
+          //   ),
+          // );
+        }
+      }
+    }
+
+    // _loadNotificationPreferences();
   }
+
 
   Future<void> _navigate() async {
     final prefs = await SharedPreferences.getInstance();

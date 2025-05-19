@@ -69,30 +69,6 @@ class _DashboardState extends State<Dashboard> {
     return "unknown_device_id";
   }
 
-  // Future<void> _loadReminders() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   final String? savedReminders = prefs.getString('reminders');
-  //
-  //   if (savedReminders != null) {
-  //     Map<String, dynamic> decodedReminders = jsonDecode(savedReminders);
-  //     setState(() {
-  //       _reminders = decodedReminders.map((key, value) {
-  //         return MapEntry(DateTime.parse(key), List<String>.from(value));
-  //       });
-  //     });
-  //   }
-  //
-  //   final dynamic rawData = prefs.get('unreadNotifications');
-  //   if (rawData is List<String>) {
-  //     _unreadNotifications = rawData;
-  //   } else {
-  //     _unreadNotifications = [];
-  //   }
-  //   _unreadNotifications = prefs.getStringList('unreadNotifications') ?? [];
-  //   setState(() {
-  //     _isLoading = false;
-  //   });
-  // }
   Future<void> _loadReminders() async {
     final prefs = await SharedPreferences.getInstance();
     final String? savedReminders = prefs.getString('reminders');
@@ -126,22 +102,6 @@ class _DashboardState extends State<Dashboard> {
     });
   }
 
-  // List<MapEntry<DateTime, String>> _getTodaysReminders() {
-  //   DateTime today = DateTime.now();
-  //   List<MapEntry<DateTime, String>> todayReminders = [];
-  //
-  //   _reminders.forEach((date, reminders) {
-  //     if (date.year == today.year &&
-  //         date.month == today.month &&
-  //         date.day == today.day) {
-  //       todayReminders.addAll(
-  //         reminders.map((reminder) => MapEntry(date, reminder)),
-  //       );
-  //     }
-  //   });
-  //
-  //   return todayReminders;
-  // }
   List<MapEntry<DateTime, Map<String, dynamic>>> _getTodaysReminders() {
     DateTime today = DateTime.now();
     List<MapEntry<DateTime, Map<String, dynamic>>> todayReminders = [];
@@ -159,54 +119,10 @@ class _DashboardState extends State<Dashboard> {
     return todayReminders;
   }
 
-  // Future<void> _removeReminder(DateTime date, String reminder) async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   List<String> notificationsJson =
-  //       prefs.getStringList('unreadNotifications') ?? [];
-  //
-  //   List<String> updatedNotifications = [];
-  //   List<int> idsToCancel = [];
-  //
-  //   for (var jsonString in notificationsJson) {
-  //     final decoded = jsonDecode(jsonString);
-  //     if (decoded['reminder'] == reminder &&
-  //         decoded['date'] == DateFormat('yyyy-MM-dd').format(date)) {
-  //       idsToCancel.add(int.tryParse(decoded['id'] ?? '') ?? 0);
-  //     } else {
-  //       updatedNotifications.add(jsonString);
-  //     }
-  //   }
-  //
-  //   // Cancel the notifications associated with this reminder
-  //   for (var id in idsToCancel) {
-  //     await _notificationsPlugin.cancel(id);
-  //   }
-  //
-  //   // Update the unread notifications list in SharedPreferences
-  //   await prefs.setStringList('unreadNotifications', updatedNotifications);
-  //
-  //   setState(() {
-  //     _reminders[date]?.remove(reminder);
-  //     if (_reminders[date]?.isEmpty ?? true) _reminders.remove(date);
-  //   });
-  //
-  //   // Save updated reminders in SharedPreferences
-  //   await prefs.setString(
-  //     'reminders',
-  //     jsonEncode(
-  //       _reminders.map((key, value) => MapEntry(key.toIso8601String(), value)),
-  //     ),
-  //   );
-  //
-  //   // Now reload the reminders to reflect the updated data
-  //   await _loadReminders();
-  // }
-
   Future<void> _removeReminder(
-      DateTime date,
-      Map<String, dynamic> reminder,
-      ) async
-  {
+    DateTime date,
+    Map<String, dynamic> reminder,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     List<String> notificationsJson =
         prefs.getStringList('unreadNotifications') ?? [];
@@ -234,11 +150,11 @@ class _DashboardState extends State<Dashboard> {
       if (_reminders[date]?.isEmpty ?? true) _reminders.remove(date);
     });
     await prefs.setString(
-            'reminders',
-            jsonEncode(
-              _reminders.map((key, value) => MapEntry(key.toIso8601String(), value)),
-            ),
-          );
+      'reminders',
+      jsonEncode(
+        _reminders.map((key, value) => MapEntry(key.toIso8601String(), value)),
+      ),
+    );
     await _loadReminders();
     await prefs.setStringList('unreadNotifications', updatedNotifications);
   }
@@ -283,12 +199,7 @@ class _DashboardState extends State<Dashboard> {
 
   int totalGlasses = 0;
   final int targetGlasses = 8;
-  // Future<void> _loadWaterIntake() async {
-  //   SharedPreferences prefs = await SharedPreferences.getInstance();
-  //   setState(() {
-  //     totalGlasses = prefs.getInt('water_glasses') ?? 0;
-  //   });
-  // }
+
   Future<void> _loadWaterIntake() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final deviceId = prefs.getString('device_id') ?? "unknown_device_id";
@@ -604,7 +515,6 @@ class _DashboardState extends State<Dashboard> {
                                   ),
 
                                   SizedBox(width: 16),
-
                                   // Poster Section
                                   Expanded(
                                     child: ClipRRect(
@@ -640,90 +550,6 @@ class _DashboardState extends State<Dashboard> {
                               ],
                             ),
                           ),
-                          // Reminder Cards
-                          // if (todaysReminders.isNotEmpty)
-                          //   Padding(
-                          //     padding: const EdgeInsets.only(left: 6, right: 6),
-                          //     child: Column(
-                          //       children:
-                          //           todaysReminders.map((entry) {
-                          //             DateTime reminderDate = entry.key;
-                          //             String reminderText = entry.value;
-                          //             String formattedDate = DateFormat(
-                          //               'yyyy-MM-dd HH:mm a',
-                          //             ).format(reminderDate);
-                          //             print("date time $reminderDate");
-                          //             return Container(
-                          //               margin: EdgeInsets.symmetric(
-                          //                 vertical: 6,
-                          //               ),
-                          //               decoration: BoxDecoration(
-                          //                 gradient: LinearGradient(
-                          //                   colors: [
-                          //                     Colors.white,
-                          //                     Colors.white,
-                          //                     // Colors.deepPurple.shade100,
-                          //                     // Colors.deepPurple.shade50,
-                          //                   ],
-                          //                   begin: Alignment.topLeft,
-                          //                   end: Alignment.bottomRight,
-                          //                 ),
-                          //                 borderRadius: BorderRadius.circular(
-                          //                   16,
-                          //                 ),
-                          //                 boxShadow: [
-                          //                   BoxShadow(
-                          //                     color: Colors.deepPurple.shade100
-                          //                         .withOpacity(0.4),
-                          //                     blurRadius: 4,
-                          //                     offset: Offset(2, 4),
-                          //                   ),
-                          //                 ],
-                          //               ),
-                          //               child: ListTile(
-                          //                 leading: CircleAvatar(
-                          //                   backgroundColor:
-                          //                       Colors.deepPurple.shade200,
-                          //                   child: FaIcon(
-                          //                     FontAwesomeIcons.solidBell,
-                          //                     size: 16,
-                          //                     color: Colors.white,
-                          //                   ),
-                          //                 ),
-                          //                 subtitle: Text(reminderDate.toString(),style: TextStyle(color: Colors.grey),),
-                          //                 title: Text(
-                          //                   reminderText,
-                          //                   style: TextStyle(
-                          //                     fontWeight: FontWeight.w600,
-                          //                   ),
-                          //                 ),
-                          //                 trailing: IconButton(
-                          //                   icon: FaIcon(
-                          //                     FontAwesomeIcons.trashCan,
-                          //                     size: 18,
-                          //                     color: Colors.red,
-                          //                   ),
-                          //
-                          //                   onPressed: () async {
-                          //                     await _removeReminder(
-                          //                       reminderDate,
-                          //                       reminderText,
-                          //                     );
-                          //                   },
-                          //                 ),
-                          //               ),
-                          //             );
-                          //           }).toList(),
-                          //     ),
-                          //   )
-                          // else
-                          //   Padding(
-                          //     padding: const EdgeInsets.symmetric(vertical: 15),
-                          //     child: Text(
-                          //       "No reminders for today!",
-                          //       style: TextStyle(color: Colors.grey),
-                          //     ),
-                          //   ),
                           if (todaysReminders.isNotEmpty) ...[
                             Padding(
                               padding: const EdgeInsets.only(
@@ -816,13 +642,13 @@ class _DashboardState extends State<Dashboard> {
                               ),
                             ),
                           ] else ...[
-                            SizedBox(height: 50),
+                            SizedBox(height: 15),
                             Text(
                               "No reminders for today!",
                               style: TextStyle(color: Colors.grey),
                             ),
                           ],
-                          SizedBox(height: 8),
+                          SizedBox(height: 15),
                           // Feature Cards Grid
                           Padding(
                             padding: const EdgeInsets.all(6.0),
@@ -944,7 +770,6 @@ class _DashboardState extends State<Dashboard> {
       ],
     );
   }
-
   @override
   void dispose() {
     _notificationStream.close(); // Close the stream to prevent memory leaks

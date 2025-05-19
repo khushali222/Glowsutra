@@ -149,12 +149,14 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
   void initState() {
     super.initState();
     tz.initializeTimeZones();
-    _checkAndDisableOldReminders();
+    _loadNotificationPreferences();
+    // _checkAndDisableOldReminders();
     _initNotifications();
     _loadWaterIntake();
     WidgetsBinding.instance.addObserver(this);
-    // _loadNotificationPreferences();
+
     _fetchAndSaveDeviceId();
+    print("InitState done. Notifications enabled? $notificationsEnabled");
   }
 
   Future<void> _fetchAndSaveDeviceId() async {
@@ -242,34 +244,72 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     await prefs.setInt('water_glasses', totalGlasses);
   }
 
+  // Future<void> _loadNotificationPreferences() async {
+  //   SharedPreferences prefs = await SharedPreferences.getInstance();
+  //   final userId = FirebaseAuth.instance.currentUser?.uid;
+  //   DocumentSnapshot<Map<String, dynamic>> snapshot =
+  //       await FirebaseFirestore.instance
+  //           .collection("User")
+  //           .doc("fireid")
+  //           .collection("waterGlasess")
+  //           .doc(userId)
+  //           .get();
+  //
+  //   bool enablenoti = false;
+  //   if (snapshot.exists &&
+  //       snapshot.data() != null &&
+  //       snapshot.data()!['notificationsEnabled'] != null) {
+  //     enablenoti = snapshot.data()!['notificationsEnabled'];
+  //   }
+  //   setState(() {
+  //     notificationsEnabled = enablenoti;
+  //     selectedReminder = prefs.getString('reminder_type') ?? "None";
+  //   });
+  //   print("Notification load $notificationsEnabled");
+  // }
   Future<void> _loadNotificationPreferences() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    DocumentSnapshot<Map<String, dynamic>> snapshot =
-        await FirebaseFirestore.instance
+
+    // First try from local prefs
+    bool enablenoti = prefs.getBool('notificationsEnabled') ?? false;
+    String reminderType = prefs.getString('reminder_type') ?? "None";
+
+    // Optionally verify Firestore value for accuracy or sync
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId != null) {
+        DocumentSnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore.instance
             .collection("User")
             .doc("fireid")
             .collection("waterGlasess")
             .doc(userId)
             .get();
 
-    bool enablenoti = false;
-    if (snapshot.exists &&
-        snapshot.data() != null &&
-        snapshot.data()!['notificationsEnabled'] != null) {
-      enablenoti = snapshot.data()!['notificationsEnabled'];
+        if (snapshot.exists &&
+            snapshot.data() != null &&
+            snapshot.data()!['notificationsEnabled'] != null) {
+          enablenoti = snapshot.data()!['notificationsEnabled'];
+        }
+      }
+    } catch (e) {
+      print("Error loading notification setting from Firestore: $e");
     }
+
+    // Update the state
     setState(() {
       notificationsEnabled = enablenoti;
-      selectedReminder = prefs.getString('reminder_type') ?? "None";
+      selectedReminder = reminderType;
     });
-    print("Notification load $notificationsEnabled");
+
+    print("Notification loaded: $notificationsEnabled, Reminder: $selectedReminder");
   }
+
 
   Future<void> _saveNotificationPreferences() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setBool('notifications_enabled', notificationsEnabled);
     final userId = FirebaseAuth.instance.currentUser?.uid;
+    final Timestamp now = Timestamp.fromDate(DateTime.now());
     await FirebaseFirestore.instance
         .collection("User")
         .doc("fireid")
@@ -280,6 +320,10 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
           "notificationsEnabledAt": Timestamp.fromDate(DateTime.now()),
         }, SetOptions(merge: true)); //  use the right key!
     await prefs.setString('reminder_type', selectedReminder);
+    await prefs.setString(
+      'notifications_enabled_at',
+      now.toDate().toIso8601String(),
+    );
   }
 
   Future<void> _initNotifications() async {
