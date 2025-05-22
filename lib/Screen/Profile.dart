@@ -446,6 +446,7 @@ class _ProfileState extends State<Profile> {
       });
     }
   }
+
   Future<void> _logout() async {
     try {
       await _auth.signOut();
@@ -459,6 +460,7 @@ class _ProfileState extends State<Profile> {
       Fluttertoast.showToast(msg: 'Failed to log out: $e');
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -494,8 +496,9 @@ class _ProfileState extends State<Profile> {
                                       (context, url) => CircleAvatar(
                                         radius: 100,
                                         backgroundColor: Colors.grey[300],
-                                        child: SpinKitCircle(
-                                          color: Colors.black,
+                                        child: SpinKitFadingCircle(
+                                          color: Colors.transparent,
+                                          size: 50,
                                         ),
                                       ),
                                   errorWidget:
@@ -508,6 +511,8 @@ class _ProfileState extends State<Profile> {
                                           color: Colors.red,
                                         ),
                                       ),
+                                  fadeInDuration: Duration(milliseconds: 300),
+                                  fadeOutDuration: Duration(milliseconds: 100),
                                 )
                                 : CircleAvatar(
                                   radius: 100,
@@ -537,7 +542,11 @@ class _ProfileState extends State<Profile> {
                           GestureDetector(
                             onTap: _logout,
                             child: ListTile(
-                              leading: Icon(Icons.logout,color: Colors.deepPurple.shade300, size: 30),
+                              leading: Icon(
+                                Icons.logout,
+                                color: Colors.deepPurple.shade300,
+                                size: 30,
+                              ),
                               title: Text("Log out"),
                             ),
                           ),

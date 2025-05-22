@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'Authentication/LoginScreen/login.dart';
 import 'Water_intakescreen.dart';
@@ -26,6 +28,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
+    _initPermissions();
     _fetchAndSaveDeviceId();
     // Initializing the animation controller
     _controller = AnimationController(
@@ -51,6 +54,34 @@ class _SplashScreenState extends State<SplashScreen>
     _checkAndDisableOldReminders();
     _navigate();
   }
+
+  Future<void> _initPermissions() async {
+    print(" caling permission of notification nd both ");
+    // Request Physical Activity permission (Android 10+)
+    final activityStatus = await Permission.activityRecognition.status;
+    if (!activityStatus.isGranted) {
+      final result = await Permission.activityRecognition.request();
+      if (!result.isGranted) {
+        Fluttertoast.showToast(
+          msg: "Activity Recognition permission denied. Step tracking will not work.",
+        );
+      }
+    }
+
+    // Request Notification permission (Android 13+)
+    if (Platform.isAndroid) {
+      final notificationStatus = await Permission.notification.status;
+      if (!notificationStatus.isGranted) {
+        final result = await Permission.notification.request();
+        if (!result.isGranted) {
+          Fluttertoast.showToast(
+            msg: "Notification permission denied. Reminders may not show.",
+          );
+        }
+      }
+    }
+  }
+
   Future<void> resetIfNeeded() async {
     print("Calling reset");
     final prefs = await SharedPreferences.getInstance();
@@ -168,46 +199,19 @@ class _SplashScreenState extends State<SplashScreen>
     return "unknown_device_id";
   }
 
-  // Future<void> _checkNotificationStatus() async {
-  //   SharedPreferences prefs = await SharedPreferences.getInstance();
-  //
-  //   // Check if notifications are enabled
-  //   bool notificationsEnabled = prefs.getBool('notifications_enabled') ?? false;
-  //
-  //   // Get the timestamp string
-  //   String? enabledAtStr = prefs.getString('notifications_enabled_at');
-  //
-  //   if (notificationsEnabled && enabledAtStr != null) {
-  //     DateTime enabledAt = DateTime.parse(enabledAtStr);
-  //     Duration timeSinceEnabled = DateTime.now().difference(enabledAt);
-  //
-  //     print("Notifications were enabled at: $enabledAt");
-  //     print("Time since enabled: ${timeSinceEnabled.inHours} hours");
-  //
-  //     if (timeSinceEnabled.inHours >= 24) {
-  //       print("Disabling old notifications...");
-  //       await prefs.setBool('notifications_enabled', false);
-  //       await prefs.remove('notifications_enabled_at');
-  //
-  //       // If you store notification IDs, you can also cancel them here
-  //       // flutterLocalNotificationsPlugin.cancelAll(); // if plugin is initialized
-  //
-  //
-  //     }
-  //   }
-  // }
   Future<void> _checkAndDisableOldReminders() async {
     final prefs = await SharedPreferences.getInstance();
     final userId = FirebaseAuth.instance.currentUser?.uid;
 
     if (userId == null) return;
 
-    final doc = await FirebaseFirestore.instance
-        .collection("User")
-        .doc("fireid")
-        .collection("waterGlasess")
-        .doc(userId)
-        .get();
+    final doc =
+        await FirebaseFirestore.instance
+            .collection("User")
+            .doc("fireid")
+            .collection("waterGlasess")
+            .doc(userId)
+            .get();
 
     if (!doc.exists) return;
 
@@ -216,7 +220,8 @@ class _SplashScreenState extends State<SplashScreen>
 
     bool notificationsEnabledFirestore = data['notificationsEnabled'] ?? false;
     Timestamp? enabledAtTimestamp = data['notificationsEnabledAt'];
-    List<String> waterList = prefs.getStringList('saved_notification_ids') ?? [];
+    List<String> waterList =
+        prefs.getStringList('saved_notification_ids') ?? [];
 
     if (notificationsEnabledFirestore && enabledAtTimestamp != null) {
       DateTime enabledAt = enabledAtTimestamp.toDate();
@@ -224,8 +229,8 @@ class _SplashScreenState extends State<SplashScreen>
 
       bool sameDay =
           enabledAt.year == now.year &&
-              enabledAt.month == now.month &&
-              enabledAt.day == now.day;
+          enabledAt.month == now.month &&
+          enabledAt.day == now.day;
 
       if (!sameDay) {
         // It's a new day - disable everything
@@ -249,9 +254,9 @@ class _SplashScreenState extends State<SplashScreen>
             .collection("waterGlasess")
             .doc(userId)
             .set({
-          "notificationsEnabled": false,
-          "notificationsEnabledAt": Timestamp.fromDate(now),
-        }, SetOptions(merge: true));
+              "notificationsEnabled": false,
+              "notificationsEnabledAt": Timestamp.fromDate(now),
+            }, SetOptions(merge: true));
 
         // Update UI state
         if (mounted) {
@@ -270,7 +275,6 @@ class _SplashScreenState extends State<SplashScreen>
 
     // _loadNotificationPreferences();
   }
-
 
   Future<void> _navigate() async {
     final prefs = await SharedPreferences.getInstance();

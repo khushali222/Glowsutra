@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -204,6 +205,9 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     } catch (e) {
       print("Error updating water glasses: $e");
     }
+    setState(() {
+      _isLoading = false;
+    });
   }
 
   Future<void> _saveWaterIntake() async {
@@ -228,6 +232,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
             "glasscount": totalGlasses,
             "timezone": currentTimeZone,
             "lastUpdated": Timestamp.now(),
+
           });
 
       // Also update SharedPreferences (optional)
@@ -244,29 +249,6 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     await prefs.setInt('water_glasses', totalGlasses);
   }
 
-  // Future<void> _loadNotificationPreferences() async {
-  //   SharedPreferences prefs = await SharedPreferences.getInstance();
-  //   final userId = FirebaseAuth.instance.currentUser?.uid;
-  //   DocumentSnapshot<Map<String, dynamic>> snapshot =
-  //       await FirebaseFirestore.instance
-  //           .collection("User")
-  //           .doc("fireid")
-  //           .collection("waterGlasess")
-  //           .doc(userId)
-  //           .get();
-  //
-  //   bool enablenoti = false;
-  //   if (snapshot.exists &&
-  //       snapshot.data() != null &&
-  //       snapshot.data()!['notificationsEnabled'] != null) {
-  //     enablenoti = snapshot.data()!['notificationsEnabled'];
-  //   }
-  //   setState(() {
-  //     notificationsEnabled = enablenoti;
-  //     selectedReminder = prefs.getString('reminder_type') ?? "None";
-  //   });
-  //   print("Notification load $notificationsEnabled");
-  // }
   Future<void> _loadNotificationPreferences() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
@@ -278,12 +260,13 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;
       if (userId != null) {
-        DocumentSnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore.instance
-            .collection("User")
-            .doc("fireid")
-            .collection("waterGlasess")
-            .doc(userId)
-            .get();
+        DocumentSnapshot<Map<String, dynamic>> snapshot =
+            await FirebaseFirestore.instance
+                .collection("User")
+                .doc("fireid")
+                .collection("waterGlasess")
+                .doc(userId)
+                .get();
 
         if (snapshot.exists &&
             snapshot.data() != null &&
@@ -301,9 +284,10 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
       selectedReminder = reminderType;
     });
 
-    print("Notification loaded: $notificationsEnabled, Reminder: $selectedReminder");
+    print(
+      "Notification loaded: $notificationsEnabled, Reminder: $selectedReminder",
+    );
   }
-
 
   Future<void> _saveNotificationPreferences() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -405,127 +389,6 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     print("notification with payload time: $payload");
   }
 
-  // void _toggleNotifications(bool value) async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   List<String> waterList =
-  //       prefs.getStringList('saved_notification_ids') ?? [];
-  //   print("water list $waterList");
-  //
-  //   setState(() {
-  //     notificationsEnabled = value;
-  //   });
-  //
-  //   prefs.setBool('notificationsEnabled', notificationsEnabled);
-  //
-  //   if (notificationsEnabled && selectedReminder != "None") {
-  //     bool alreadyScheduled = prefs.getBool('alreadyScheduled') ?? false;
-  //     if (!alreadyScheduled) {
-  //       // Optional: cancel previously saved notifications first
-  //       for (String id in waterList) {
-  //         await flutterLocalNotificationsPlugin.cancel(int.parse(id));
-  //       }
-  //
-  //       _scheduleNotifications(_getDaysFromReminder(selectedReminder));
-  //       prefs.setBool('alreadyScheduled', true);
-  //     }
-  //   }
-  //   else {
-  //     // Disable notifications
-  //     prefs.setBool('alreadyScheduled', false);
-  //
-  //     if (waterList.isNotEmpty) {
-  //       for (String id in waterList) {
-  //         await flutterLocalNotificationsPlugin.cancel(int.parse(id));
-  //       }
-  //
-  //       // Optionally clear the saved IDs
-  //       await prefs.remove('saved_notification_ids');
-  //     }
-  //
-  //     // Safely show snackbar only if widget is still mounted
-  //     if (mounted) {
-  //       ScaffoldMessenger.of(
-  //         context,
-  //       ).showSnackBar(SnackBar(content: Text("Notifications Disabled!")));
-  //     }
-  //   }
-  //   _saveNotificationPreferences();
-  // }
-  // void _toggleNotifications(bool value) async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   List<String> waterList =
-  //       prefs.getStringList('saved_notification_ids') ?? [];
-  //
-  //   setState(() {
-  //     notificationsEnabled = value;
-  //   });
-  //
-  //   // Save notificationsEnabled state locally
-  //   await prefs.setBool('notificationsEnabled', notificationsEnabled);
-  //
-  //   final userId = FirebaseAuth.instance.currentUser?.uid;
-  //   if (userId == null) {
-  //     print("No user logged in.");
-  //     return;
-  //   }
-  //
-  //   final now = DateTime.now();
-  //
-  //   if (notificationsEnabled ) {
-  //     // Cancel previously scheduled notifications first to avoid duplicates
-  //     for (String id in waterList) {
-  //       await flutterLocalNotificationsPlugin.cancel(int.parse(id));
-  //     }
-  //     waterList.clear();
-  //
-  //     // Schedule notifications for today only (dayOffset = 0)
-  //     _scheduleNotifications(_getDaysFromReminder(selectedReminder));
-  //
-  //     // Save "notifications enabled" state with timestamp to Firestore
-  //     await FirebaseFirestore.instance
-  //         .collection("User")
-  //         .doc("fireid")
-  //         .collection("waterGlasess")
-  //         .doc(userId)
-  //         .set({
-  //           "notificationsEnabled": true,
-  //           "notificationsEnabledAt": Timestamp.fromDate(now),
-  //         }, SetOptions(merge: true));
-  //
-  //     // Save notification IDs locally
-  //     await prefs.setStringList('saved_notification_ids', waterList);
-  //
-  //     print("Notifications enabled for today.");
-  //   } else {
-  //     // User disabled notifications
-  //     print(waterList);
-  //     for (String id in waterList) {
-  //       await flutterLocalNotificationsPlugin.cancel(int.parse(id));
-  //     }
-  //     await prefs.remove('saved_notification_ids');
-  //
-  //     // Update Firestore that notifications are disabled
-  //     await FirebaseFirestore.instance
-  //         .collection("User")
-  //         .doc("fireid")
-  //         .collection("waterGlasess")
-  //         .doc(userId)
-  //         .set({
-  //           "notificationsEnabled": false,
-  //           "notificationsEnabledAt":  Timestamp.fromDate(now),
-  //         }, SetOptions(merge: true));
-  //
-  //     if (mounted) {
-  //       ScaffoldMessenger.of(
-  //         context,
-  //       ).showSnackBar(SnackBar(content: Text("Notifications Disabled!")));
-  //     }
-  //
-  //     print("Notifications disabled and all canceled.");
-  //   }
-  //
-  //   _saveNotificationPreferences();
-  // }
   void _toggleNotifications(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     List<String> waterList =
@@ -549,7 +412,8 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
         _scheduleNotifications(_getDaysFromReminder(selectedReminder));
         prefs.setBool('alreadyScheduled', true);
       }
-    } else {
+    } else
+    {
       // Disable notifications
       prefs.setBool('alreadyScheduled', false);
 
@@ -564,9 +428,9 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
 
       // Safely show snackbar only if widget is still mounted
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Notifications Disabled!")));
+        // ScaffoldMessenger.of(
+        //   context,
+        // ).showSnackBar(SnackBar(content: Text("Notifications Disabled!")));
       }
     }
 
@@ -650,7 +514,8 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     int hour,
     int minute,
     int id,
-  ) async {
+  ) async
+  {
     final now = DateTime.now();
     DateTime scheduledTime = DateTime(
       now.year,
@@ -916,6 +781,8 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     }
   }
 
+  bool _isLoading = true;
+
   @override
   Widget build(BuildContext context) {
     double progress = totalGlasses / targetGlasses;
@@ -927,193 +794,201 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
         title: Text("Water Intake Tracker"),
       ),
       backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          child: Column(
-            children: [
-              // Image Section
-              ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  height: 250,
-                  // width: double.infinity,
-                  color: Colors.deepPurple[50],
-                  child: Image.network(
-                    "https://img.freepik.com/premium-vector/glass-with-water-template-glass-transparent-cup-with-blue-refreshing-natural-liquid_79145-1179.jpg?ga=GA1.1.92241902.1743491671&semt=ais_hybrid&w=740",
-                    // fit: BoxFit.fill,
+      body:
+          _isLoading
+              ? Center(child: SpinKitCircle(color: Colors.black))
+              : SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 14,
+                  ),
+                  child: Column(
+                    children: [
+                      // Image Section
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          height: 250,
+                          // width: double.infinity,
+                          color: Colors.deepPurple[50],
+                          child: Image.network(
+                            "https://img.freepik.com/premium-vector/glass-with-water-template-glass-transparent-cup-with-blue-refreshing-natural-liquid_79145-1179.jpg?ga=GA1.1.92241902.1743491671&semt=ais_hybrid&w=740",
+                            // fit: BoxFit.fill,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: 10),
+                      // Progress Info
+                      Container(
+                        padding: EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.deepPurple[50],
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              "$totalGlasses / $targetGlasses Glasses",
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.deepPurple[800],
+                              ),
+                            ),
+                            SizedBox(height: 12),
+                            LinearProgressIndicator(
+                              value: progress,
+                              minHeight: 10,
+                              color: Colors.deepPurple,
+                              backgroundColor: Colors.deepPurple.shade100,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: 24),
+                      // Inline Action Buttons
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: () => _addWater(1),
+                            icon: Icon(Icons.add),
+                            label: Text("Add"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.deepPurple[300],
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
+                          ElevatedButton.icon(
+                            onPressed: () => _removeWater(1),
+                            icon: Icon(Icons.remove),
+                            label: Text("Remove"),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.deepPurple[100],
+                              foregroundColor: Colors.deepPurple[800],
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
+                          OutlinedButton(
+                            onPressed: _resetWaterIntake,
+                            child: Text("Reset"),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.deepPurple,
+                              side: BorderSide(
+                                color: Colors.deepPurple.shade300,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 30),
+                      Divider(color: Colors.deepPurple[100]),
+                      SizedBox(height: 8),
+                      // Reminder Section
+                      Row(
+                        children: [
+                          Text(
+                            "Reminders",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.deepPurple[900],
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 10),
+                      // Reminder Toggle
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Enable Reminders",
+                            style: TextStyle(color: Colors.deepPurple[700]),
+                          ),
+                          Switch(
+                            value: notificationsEnabled,
+                            onChanged: _toggleNotifications,
+                            activeColor: Colors.deepPurple,
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 10),
+                      // Row(
+                      //   children: [
+                      //     Container(
+                      //       padding: EdgeInsets.symmetric(horizontal: 16),
+                      //       decoration: BoxDecoration(
+                      //         color: Colors.deepPurple[50],
+                      //         borderRadius: BorderRadius.circular(12),
+                      //       ),
+                      //       child: DropdownButtonHideUnderline(
+                      //         child: DropdownButton<String>(
+                      //           value: selectedReminder,
+                      //           onChanged: (String? newValue) {
+                      //             setState(() {
+                      //               selectedReminder = newValue!;
+                      //             });
+                      //             if (notificationsEnabled) _toggleNotifications(true);
+                      //             _saveNotificationPreferences();
+                      //           },
+                      //           items:
+                      //               [
+                      //                 "None",
+                      //                 "Daily",
+                      //                 "Weekly",
+                      //                 "Monthly",
+                      //               ].map<DropdownMenuItem<String>>((String value) {
+                      //                 return DropdownMenuItem<String>(
+                      //                   value: value,
+                      //                   child: Text(value),
+                      //                 );
+                      //               }).toList(),
+                      //         ),
+                      //       ),
+                      //     ),
+                      //   ],
+                      // ),
+                      // Dropdown
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              "Note: Make sure to enable daily reminders every day to stay notified.",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),
-              SizedBox(height: 10),
-              // Progress Info
-              Container(
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.deepPurple[50],
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      "$totalGlasses / $targetGlasses Glasses",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.deepPurple[800],
-                      ),
-                    ),
-                    SizedBox(height: 12),
-                    LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 10,
-                      color: Colors.deepPurple,
-                      backgroundColor: Colors.deepPurple.shade100,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 24),
-              // Inline Action Buttons
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () => _addWater(1),
-                    icon: Icon(Icons.add),
-                    label: Text("Add"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple[300],
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () => _removeWater(1),
-                    icon: Icon(Icons.remove),
-                    label: Text("Remove"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple[100],
-                      foregroundColor: Colors.deepPurple[800],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                    ),
-                  ),
-                  OutlinedButton(
-                    onPressed: _resetWaterIntake,
-                    child: Text("Reset"),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.deepPurple,
-                      side: BorderSide(color: Colors.deepPurple.shade300),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 30),
-              Divider(color: Colors.deepPurple[100]),
-              SizedBox(height: 8),
-              // Reminder Section
-              Row(
-                children: [
-                  Text(
-                    "Reminders",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.deepPurple[900],
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 10),
-              // Reminder Toggle
-              Row(
-                mainAxisAlignment: MainAxisAlignment.start,
-                children: [
-                  Text(
-                    "Enable Reminders",
-                    style: TextStyle(color: Colors.deepPurple[700]),
-                  ),
-                  Switch(
-                    value: notificationsEnabled,
-                    onChanged: _toggleNotifications,
-                    activeColor: Colors.deepPurple,
-                  ),
-                ],
-              ),
-              SizedBox(height: 10),
-              // Row(
-              //   children: [
-              //     Container(
-              //       padding: EdgeInsets.symmetric(horizontal: 16),
-              //       decoration: BoxDecoration(
-              //         color: Colors.deepPurple[50],
-              //         borderRadius: BorderRadius.circular(12),
-              //       ),
-              //       child: DropdownButtonHideUnderline(
-              //         child: DropdownButton<String>(
-              //           value: selectedReminder,
-              //           onChanged: (String? newValue) {
-              //             setState(() {
-              //               selectedReminder = newValue!;
-              //             });
-              //             if (notificationsEnabled) _toggleNotifications(true);
-              //             _saveNotificationPreferences();
-              //           },
-              //           items:
-              //               [
-              //                 "None",
-              //                 "Daily",
-              //                 "Weekly",
-              //                 "Monthly",
-              //               ].map<DropdownMenuItem<String>>((String value) {
-              //                 return DropdownMenuItem<String>(
-              //                   value: value,
-              //                   child: Text(value),
-              //                 );
-              //               }).toList(),
-              //         ),
-              //       ),
-              //     ),
-              //   ],
-              // ),
-              // Dropdown
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      "Note: Make sure to enable daily reminders every day to stay notified.",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black54,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

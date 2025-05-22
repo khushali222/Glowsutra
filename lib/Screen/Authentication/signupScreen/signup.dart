@@ -554,7 +554,6 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
               ),
               SizedBox(height: 16),
-
               // Password
               Container(
                 child: TextFormField(
@@ -582,7 +581,6 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
               ),
               SizedBox(height: 16),
-
               // Mobile
               Container(
                 child: TextFormField(
@@ -600,7 +598,6 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
               ),
               SizedBox(height: 30),
-
               _isLoading
                   ? SpinKitCircle(color: Colors.black)
                   : SizedBox(

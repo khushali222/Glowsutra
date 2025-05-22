@@ -22,6 +22,7 @@ import 'Calander.dart';
 import 'Home_Remedies.dart';
 import 'Profile.dart';
 import 'Skincaretips.dart';
+import 'Steps_Tracker.dart';
 import 'Water_intakescreen.dart';
 
 class Dashboard extends StatefulWidget {
@@ -699,6 +700,19 @@ class _DashboardState extends State<Dashboard> {
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) => homeRemedies(),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                _dashboardCard(
+                                  title: "Steps Tracker",
+                                  subtitle: "fitness tracker",
+                                  icon: Icons.directions_walk,
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => StepCounterScreen(),
                                       ),
                                     );
                                   },
