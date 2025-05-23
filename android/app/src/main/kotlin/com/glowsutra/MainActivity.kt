@@ -35,6 +35,7 @@ package com.glowsutra
 
 import android.content.Intent
 import android.os.Build
+import android.content.Context
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -48,7 +49,12 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "getStepCount" -> {
-                    result.success(StepCounterService.CURRENT_STEPS)
+                    val prefs = getSharedPreferences("step_prefs", Context.MODE_PRIVATE)
+                    val fallback = prefs.getInt("currentSteps", 0)
+
+                    // Return CURRENT_STEPS if valid, else fallback
+                    val currentSteps = StepCounterService.CURRENT_STEPS
+                    result.success(if (currentSteps >= 0) currentSteps else fallback)
                 }
                 "startService" -> {
                     val intent = Intent(this, StepCounterService::class.java)
@@ -64,4 +70,7 @@ class MainActivity : FlutterActivity() {
         }
     }
 }
+
+
+
 

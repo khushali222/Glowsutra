@@ -60,16 +60,20 @@ class StepCounterService : Service(), SensorEventListener {
             val savedDate = prefs.getString("stepDate", null)
             baseSteps = prefs.getInt("baseSteps", -1)
 
+            // Initialize baseline if not set or new day
             if (savedDate != today || baseSteps == -1) {
-                // First reading today — reset base
                 prefs.edit()
                     .putInt("baseSteps", totalSteps)
                     .putString("stepDate", today)
                     .apply()
                 baseSteps = totalSteps
+                CURRENT_STEPS = 0  // Reset step count at baseline init
+            } else {
+                CURRENT_STEPS = totalSteps - baseSteps
             }
 
-            CURRENT_STEPS = totalSteps - baseSteps
+            // Save CURRENT_STEPS as fallback
+            prefs.edit().putInt("currentSteps", CURRENT_STEPS).apply()
         }
     }
 

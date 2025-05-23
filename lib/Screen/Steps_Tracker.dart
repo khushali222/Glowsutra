@@ -426,11 +426,9 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pedometer/pedometer.dart';
-import 'package:flutter/services.dart';
 
 class StepCounterScreen extends StatefulWidget {
   const StepCounterScreen({Key? key}) : super(key: key);
@@ -446,89 +444,92 @@ class _StepCounterScreenState extends State<StepCounterScreen> {
   int _baseSteps = 0;
   int _dailyGoal = 10000;
   String _status = "Unknown";
+  bool _isLoading = true;
+  bool _isBaseStepsLoaded = false;
+
+  Timer? _timer;
+  StreamSubscription<StepCount>? _stepSub;
+  StreamSubscription<PedestrianStatus>? _statusSub;
 
   @override
   void initState() {
     super.initState();
-    _startStepService(); // Start foreground service
-    Timer.periodic(const Duration(seconds: 5), (timer) => _getSteps());
-    _loadSavedData(); // Load base steps
-    _fetchStepsFromNative(); // Initial step count fetch
-    _listenToForegroundStream(); // Listen to pedometer
+    _initializeCounter();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _stepSub?.cancel();
+    _statusSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initializeCounter() async {
+    await _startStepService();
+    await _loadSavedData();
+
+    _isBaseStepsLoaded = true;
+    await _getSteps();
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) => _getSteps());
+    _listenToForegroundStream();
   }
 
   Future<void> _startStepService() async {
     try {
       await platform.invokeMethod("startService");
     } catch (e) {
-      print("Failed to start step service: $e");
+      debugPrint("Failed to start service: $e");
     }
   }
-
-  Future<void> _getSteps() async {
-    try {
-      final int steps = await platform.invokeMethod("getStepCount");
-      setState(() => _steps = steps - _baseSteps);
-    } catch (e) {
-      print("Failed to get steps: $e");
-    }
-  }
-
-  // Future<void> _initPermissions() async {
-  //   var activityStatus = await Permission.activityRecognition.status;
-  //   if (!activityStatus.isGranted) {
-  //     activityStatus = await Permission.activityRecognition.request();
-  //     if (!activityStatus.isGranted) {
-  //       Fluttertoast.showToast(msg: "Activity Recognition permission denied.");
-  //       return;
-  //     }
-  //   }
-  //
-  //   // Notification permission for Android 13+
-  //   if (await Permission.notification.isDenied || await Permission.notification.isRestricted) {
-  //     var notificationStatus = await Permission.notification.request();
-  //     if (!notificationStatus.isGranted) {
-  //       Fluttertoast.showToast(msg: "Notification permission denied.");
-  //     }
-  //   }
-  // }
 
   Future<void> _loadSavedData() async {
     final prefs = await SharedPreferences.getInstance();
     _dailyGoal = prefs.getInt('dailyGoal') ?? 10000;
 
-    final savedDate = prefs.getString('stepDate');
-    final savedBase = prefs.getInt('baseSteps') ?? 0;
     final today = DateTime.now().toIso8601String().substring(0, 10);
+    final savedDate = prefs.getString('stepDate');
+    final savedBase = prefs.getInt('baseSteps') ?? -1;
 
-    if (savedDate == today) {
+    if (savedDate == today && savedBase != -1) {
       _baseSteps = savedBase;
     } else {
-      // Reset base step count
-      final currentSteps = await platform.invokeMethod("getStepCount");
+      final currentSteps = await platform.invokeMethod("getStepCount") ?? 0;
       _baseSteps = currentSteps;
       await prefs.setInt('baseSteps', _baseSteps);
       await prefs.setString('stepDate', today);
     }
   }
 
-  Future<void> _fetchStepsFromNative() async {
+  Future<void> _getSteps() async {
     try {
-      final int result = await platform.invokeMethod("getStepCount");
-      setState(() => _steps = result - _baseSteps);
-    } on PlatformException catch (_) {
-      setState(() => _steps = 0);
+      final int steps = await platform.invokeMethod("getStepCount") ?? 0;
+      if (!mounted || !_isBaseStepsLoaded) return;
+      setState(() {
+        _steps = (steps - _baseSteps).clamp(0, 9999999);
+      });
+    } catch (e) {
+      debugPrint("Failed to get steps: $e");
     }
   }
 
   void _listenToForegroundStream() {
-    Pedometer.stepCountStream.listen((StepCount event) {
+    _stepSub = Pedometer.stepCountStream.listen((StepCount event) {
+      if (!mounted || !_isBaseStepsLoaded) return;
       setState(() {
-        _steps = event.steps - _baseSteps;
+        _steps = (event.steps - _baseSteps).clamp(0, 9999999);
       });
     });
 
-    Pedometer.pedestrianStatusStream.listen((status) {
+    _statusSub = Pedometer.pedestrianStatusStream.listen((status) {
+      if (!mounted) return;
       setState(() {
         _status = status.status;
       });
@@ -540,12 +541,14 @@ class _StepCounterScreenState extends State<StepCounterScreen> {
     final progress = (_steps / _dailyGoal).clamp(0.0, 1.0);
     return Scaffold(
       appBar: AppBar(
-        title: const Text(" Smart Step Counter"),
+        title: const Text("Smart Step Counter"),
         backgroundColor: Colors.teal,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text("Steps: $_steps", style: const TextStyle(fontSize: 36)),
@@ -557,9 +560,11 @@ class _StepCounterScreenState extends State<StepCounterScreen> {
               valueColor: const AlwaysStoppedAnimation(Colors.teal),
             ),
             const SizedBox(height: 20),
-            Text("Pedestrian Status: $_status", style: const TextStyle(fontSize: 18)),
+            Text("Pedestrian Status: $_status",
+                style: const TextStyle(fontSize: 18)),
             const Spacer(),
-            Text("Goal: $_dailyGoal steps", style: const TextStyle(fontSize: 16)),
+            Text("Goal: $_dailyGoal steps",
+                style: const TextStyle(fontSize: 16)),
             const SizedBox(height: 12),
           ],
         ),
@@ -568,3 +573,148 @@ class _StepCounterScreenState extends State<StepCounterScreen> {
   }
 }
 
+
+
+// import 'dart:async';
+// import 'package:flutter/material.dart';
+// import 'package:fluttertoast/fluttertoast.dart';
+// import 'package:permission_handler/permission_handler.dart';
+// import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:pedometer/pedometer.dart';
+// import 'package:flutter/services.dart';
+//
+// class StepCounterScreen extends StatefulWidget {
+//   const StepCounterScreen({Key? key}) : super(key: key);
+//
+//   @override
+//   State<StepCounterScreen> createState() => _StepCounterScreenState();
+// }
+//
+// class _StepCounterScreenState extends State<StepCounterScreen> {
+//   static const platform = MethodChannel("com.example.stepcounter/steps");
+//
+//   int _steps = 0;
+//   int _baseSteps = 0;
+//   int _dailyGoal = 10000;
+//   String _status = "Unknown";
+//
+//   @override
+//   void initState() {
+//     super.initState();
+//     _startStepService(); // Start foreground service
+//     Timer.periodic(const Duration(seconds: 5), (timer) => _getSteps());
+//     _loadSavedData(); // Load base steps
+//     _fetchStepsFromNative(); // Initial step count fetch
+//     _listenToForegroundStream(); // Listen to pedometer
+//   }
+//
+//   Future<void> _startStepService() async {
+//     try {
+//       await platform.invokeMethod("startService");
+//     } catch (e) {
+//       print("Failed to start step service: $e");
+//     }
+//   }
+//
+//   Future<void> _getSteps() async {
+//     try {
+//       final int steps = await platform.invokeMethod("getStepCount");
+//       setState(() => _steps = steps - _baseSteps);
+//     } catch (e) {
+//       print("Failed to get steps: $e");
+//     }
+//   }
+//
+//   // Future<void> _initPermissions() async {
+//   //   var activityStatus = await Permission.activityRecognition.status;
+//   //   if (!activityStatus.isGranted) {
+//   //     activityStatus = await Permission.activityRecognition.request();
+//   //     if (!activityStatus.isGranted) {
+//   //       Fluttertoast.showToast(msg: "Activity Recognition permission denied.");
+//   //       return;
+//   //     }
+//   //   }
+//   //
+//   //   // Notification permission for Android 13+
+//   //   if (await Permission.notification.isDenied || await Permission.notification.isRestricted) {
+//   //     var notificationStatus = await Permission.notification.request();
+//   //     if (!notificationStatus.isGranted) {
+//   //       Fluttertoast.showToast(msg: "Notification permission denied.");
+//   //     }
+//   //   }
+//   // }
+//
+//   Future<void> _loadSavedData() async {
+//     final prefs = await SharedPreferences.getInstance();
+//     _dailyGoal = prefs.getInt('dailyGoal') ?? 10000;
+//
+//     final savedDate = prefs.getString('stepDate');
+//     final savedBase = prefs.getInt('baseSteps') ?? 0;
+//     final today = DateTime.now().toIso8601String().substring(0, 10);
+//
+//     if (savedDate == today) {
+//       _baseSteps = savedBase;
+//     } else {
+//       // Reset base step count
+//       final currentSteps = await platform.invokeMethod("getStepCount");
+//       _baseSteps = currentSteps;
+//       await prefs.setInt('baseSteps', _baseSteps);
+//       await prefs.setString('stepDate', today);
+//     }
+//   }
+//
+//   Future<void> _fetchStepsFromNative() async {
+//     try {
+//       final int result = await platform.invokeMethod("getStepCount");
+//       setState(() => _steps = result - _baseSteps);
+//     } on PlatformException catch (_) {
+//       setState(() => _steps = 0);
+//     }
+//   }
+//
+//   void _listenToForegroundStream() {
+//     Pedometer.stepCountStream.listen((StepCount event) {
+//       setState(() {
+//         _steps = event.steps - _baseSteps;
+//       });
+//     });
+//
+//     Pedometer.pedestrianStatusStream.listen((status) {
+//       setState(() {
+//         _status = status.status;
+//       });
+//     });
+//   }
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     final progress = (_steps / _dailyGoal).clamp(0.0, 1.0);
+//     return Scaffold(
+//       appBar: AppBar(
+//         title: const Text(" Smart Step Counter"),
+//         backgroundColor: Colors.teal,
+//       ),
+//       body: Padding(
+//         padding: const EdgeInsets.all(20),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.center,
+//           children: [
+//             Text("Steps: $_steps", style: const TextStyle(fontSize: 36)),
+//             const SizedBox(height: 20),
+//             LinearProgressIndicator(
+//               value: progress,
+//               minHeight: 12,
+//               backgroundColor: Colors.grey[300],
+//               valueColor: const AlwaysStoppedAnimation(Colors.teal),
+//             ),
+//             const SizedBox(height: 20),
+//             Text("Pedestrian Status: $_status", style: const TextStyle(fontSize: 18)),
+//             const Spacer(),
+//             Text("Goal: $_dailyGoal steps", style: const TextStyle(fontSize: 16)),
+//             const SizedBox(height: 12),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+// }
