@@ -57,7 +57,7 @@ dependencies:
   carousel_slider:
   smooth_page_indicator:
   fl_chart:
-  intl: ^0.19.0
+  intl:
   uuid:
   google_ml_kit:
   device_info_plus:

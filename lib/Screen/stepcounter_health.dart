@@ -44,9 +44,11 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
   }
 
   Future<void> _requestPermissionsAndFetch() async {
+    print("permission");
     // Activity recognition
     if (await Permission.activityRecognition.isPermanentlyDenied) {
       _showSettingsDialog("Activity Recognition permission permanently denied. Please enable it in settings.");
+
       return;
     }
 
@@ -60,7 +62,9 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
 
     // Health Connect (Android 13+)
     if (Theme.of(context).platform == TargetPlatform.android) {
+
       final isAvailable = await _health.isHealthConnectAvailable();
+      print("isavailable $isAvailable");
       if (!isAvailable) {
         await _health.installHealthConnect();
         _showSnackbar('Please install Google Health Connect app to proceed.');
@@ -70,6 +74,7 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
 
     // Health permission
     final granted = await hasPermissions();
+    print("health $granted");
     if (!granted) {
       _showSnackbar("Permission to access health data was denied.");
       return;
@@ -77,14 +82,50 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
 
     fetchSteps();
   }
-
+  void _showHealthConnectSettingsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Health Connect Permission Required"),
+        content: Text("Please grant Health Connect permissions in the Health Connect app."),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // If your health package supports this:
+              _health.healthConnectSdkStatus;
+              // Or open Health Connect app via intent if not:
+              // launchUrl(Uri.parse("package:com.google.android.apps.healthdata"));
+            },
+            child: Text("Open Health Connect"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text("Cancel"),
+          ),
+        ],
+      ),
+    );
+  }
   Future<bool> hasPermissions() async {
     try {
+      bool success = await _health.requestAuthorization(
+        [HealthDataType.STEPS],
+        permissions: [HealthDataAccess.READ],
+      );
+      print("Authorization result: $success");
+      print("health status check ${_health.healthConnectSdkStatus}");
+      print("health status check ${await _health.requestHealthDataHistoryAuthorization()}");
+      print("health status check ${await _health.requestHealthDataInBackgroundAuthorization()}");
       bool? granted = await _health.hasPermissions(
         [HealthDataType.STEPS],
         permissions: [HealthDataAccess.READ],
       );
-
+      // if (!granted!) {
+      //   _showHealthConnectSettingsDialog();
+      //   return true;
+      // }
+      print("_health permission $granted");
       if (granted == true) return true;
 
       // Request if not already granted
@@ -128,7 +169,10 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
       int totalSteps = 0;
       for (var point in cleanData) {
         if (point.type == HealthDataType.STEPS) {
-          totalSteps += (point.value as int);
+          final value = point.value;
+          if (value is NumericHealthValue) {
+            totalSteps += value.numericValue.toInt();
+          }
         }
       }
 
@@ -138,9 +182,11 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
 
       print('Fetched steps: $totalSteps');
     } catch (e) {
+      print(e);
       _showSnackbar("Error fetching step data: $e");
     }
   }
+
 
   void _showSnackbar(String message) {
     if (mounted) {
