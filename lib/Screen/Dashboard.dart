@@ -13,6 +13,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:glow_sutra/Screen/stepcounter_health.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
@@ -704,15 +705,28 @@ class _DashboardState extends State<Dashboard> {
                                     );
                                   },
                                 ),
+                                // _dashboardCard(
+                                //   title: "Steps Tracker",
+                                //   subtitle: "fitness tracker",
+                                //   icon: Icons.directions_walk,
+                                //   onTap: () {
+                                //     Navigator.push(
+                                //       context,
+                                //       MaterialPageRoute(
+                                //         builder: (context) => StepCounterScreen(),
+                                //       ),
+                                //     );
+                                //   },
+                                // ),
                                 _dashboardCard(
-                                  title: "Steps Tracker",
+                                  title: "Steps health",
                                   subtitle: "fitness tracker",
                                   icon: Icons.directions_walk,
                                   onTap: () {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => StepCounterScreen(),
+                                        builder: (context) => StepCounterPage(),
                                       ),
                                     );
                                   },

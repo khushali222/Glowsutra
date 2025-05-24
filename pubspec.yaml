@@ -76,14 +76,7 @@ dependencies:
   path:
   pedometer:
   flutter_foreground_task:
-
-
-
-
-
-
-
-
+  health:
 
 
 dev_dependencies:

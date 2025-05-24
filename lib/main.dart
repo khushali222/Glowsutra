@@ -6,6 +6,7 @@ import 'Screen/Authentication/LoginScreen/login.dart';
 import 'Screen/Authentication/signupScreen/signup.dart';
 import 'Screen/Splash_Screen.dart';
 
+final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
@@ -13,7 +14,7 @@ void main() async {
   runApp(
     // MyApp(),
     DevicePreview(
-      enabled:false,
+      enabled: false,
       tools: [...DevicePreview.defaultTools],
       builder: (context) => MyApp(),
     ),
@@ -31,11 +32,12 @@ void main() async {
 //   );
 // }
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorObservers: [routeObserver],
       theme: ThemeData(fontFamily: 'Poppins'),
       debugShowCheckedModeBanner: false,
       home: SplashScreen(),
