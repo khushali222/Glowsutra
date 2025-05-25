@@ -28,13 +28,8 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
-
   flutter:
     sdk: flutter
-
-
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   flutter_launcher_icons:
   image_picker: ^1.1.2
@@ -57,32 +52,32 @@ dependencies:
   carousel_slider:
   smooth_page_indicator:
   fl_chart:
-  intl:
+  intl: ^0.19.0
   uuid:
   google_ml_kit:
-  device_info_plus:
+  device_info_plus: ^9.1.2
   hive:
   hive_flutter:
   hive_generator:
   build_runner:
   firebase_core:
   cloud_firestore:
-  permission_handler:
+  permission_handler: ^11.3.0
   change_app_package_name:
   firebase_auth: ^5.5.3
   firebase_storage: ^12.4.5
   cached_network_image:
   flutter_image_compress:
   path:
-  pedometer:
-  flutter_foreground_task:
-  health:
-
+  pedometer: ^4.0.1
+  flutter_background_service: ^5.0.5
+  flutter_background_service_android: ^6.2.2
+  health: ^12.2.0
+  isolate_handler: ^1.0.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
 
 flutter_launcher_icons:
   android: "launcher_icon"
