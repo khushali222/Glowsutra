@@ -55,20 +55,48 @@ class _SplashScreenState extends State<SplashScreen>
     _navigate();
   }
 
+  // Future<void> _initPermissions() async {
+  //   print(" caling permission of notification nd both ");
+  //   // Request Physical Activity permission (Android 10+)
+  //   final activityStatus = await Permission.activityRecognition.status;
+  //   if (!activityStatus.isGranted) {
+  //     final result = await Permission.activityRecognition.request();
+  //     if (!result.isGranted) {
+  //       Fluttertoast.showToast(
+  //         msg: "Activity Recognition permission denied. Step tracking will not work.",
+  //       );
+  //     }
+  //   }
+  //
+  //   // Request Notification permission (Android 13+)
+  //   if (Platform.isAndroid) {
+  //     final notificationStatus = await Permission.notification.status;
+  //     if (!notificationStatus.isGranted) {
+  //       final result = await Permission.notification.request();
+  //       if (!result.isGranted) {
+  //         Fluttertoast.showToast(
+  //           msg: "Notification permission denied. Reminders may not show.",
+  //         );
+  //       }
+  //     }
+  //   }
+  // }
+
   Future<void> _initPermissions() async {
-    print(" caling permission of notification nd both ");
-    // Request Physical Activity permission (Android 10+)
+    print("Calling permissions for activity, notification, and battery optimization");
+
+    // 1. Request Physical Activity permission (Android 10+)
     final activityStatus = await Permission.activityRecognition.status;
     if (!activityStatus.isGranted) {
       final result = await Permission.activityRecognition.request();
       if (!result.isGranted) {
         Fluttertoast.showToast(
-          msg: "Activity Recognition permission denied. Step tracking will not work.",
+          msg: "Activity Recognition permission denied. Step tracking may not work.",
         );
       }
     }
 
-    // Request Notification permission (Android 13+)
+    // 2. Request Notification permission (Android 13+)
     if (Platform.isAndroid) {
       final notificationStatus = await Permission.notification.status;
       if (!notificationStatus.isGranted) {
@@ -76,6 +104,19 @@ class _SplashScreenState extends State<SplashScreen>
         if (!result.isGranted) {
           Fluttertoast.showToast(
             msg: "Notification permission denied. Reminders may not show.",
+          );
+        }
+      }
+    }
+
+    //bettry permission
+    if (Platform.isAndroid) {
+      final batteryStatus = await Permission.ignoreBatteryOptimizations.status;
+      if (!batteryStatus.isGranted) {
+        final result = await Permission.ignoreBatteryOptimizations.request();
+        if (!result.isGranted) {
+          Fluttertoast.showToast(
+            msg: "Battery optimization permission denied. Background tracking may not work reliably.",
           );
         }
       }

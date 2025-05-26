@@ -15,6 +15,7 @@ final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
 @pragma('vm:entry-point')
 Future<bool> onStart(ServiceInstance service) async {
+  print("back cclling");
   DartPluginRegistrant.ensureInitialized();
 
   if (service is AndroidServiceInstance) {
@@ -30,7 +31,7 @@ Future<bool> onStart(ServiceInstance service) async {
   try {
     // Initialize pedometer
     final pedometer = Pedometer.stepCountStream;
-    
+
     // Listen to step count changes
     pedometer.listen((event) {
       // Update notification with current steps
@@ -40,11 +41,12 @@ Future<bool> onStart(ServiceInstance service) async {
           content: "Steps: ${event.steps}",
         );
       }
-      
+
       // Send step count to app
       service.invoke('updateSteps', {
         'steps': event.steps,
       });
+      print("back step ${event.steps}");
     });
 
     return true;
@@ -59,7 +61,7 @@ Future<bool> onIosStart(ServiceInstance service) async {
   try {
     // Initialize pedometer
     final pedometer = Pedometer.stepCountStream;
-    
+
     // Listen to step count changes
     pedometer.listen((event) {
       service.invoke('updateSteps', {
@@ -96,11 +98,11 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
     _initializeService();
     _getAndroidVersion();
     _initStepCounter();
-    
-    // Request notification permission for Android 13+
-    if (_androidVersion != null && _androidVersion! >= 33) {
-      Permission.notification.request();
-    }
+     fetchSteps();
+    // // Request notification permission for Android 13+
+    // if (_androidVersion != null && _androidVersion! >= 33) {
+    //   Permission.notification.request();
+    // }
   }
 
   Future<void> _initializeService() async {
@@ -170,26 +172,51 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
         }
       }
 
-      // Request battery optimization exemption
-      if (await Permission.ignoreBatteryOptimizations.isDenied) {
-        await Permission.ignoreBatteryOptimizations.request();
-      }
-
       // Start the background service
       await _backgroundService.startService();
-      
+
       if (mounted) {
         setState(() {
           _isServiceRunning = true;
         });
       }
-
       _showSnackbar("Step counter started. It will continue counting even when the app is closed.");
     } catch (e) {
       print('Error starting background service: $e');
       _showSnackbar('Failed to start background service: $e');
     }
   }
+
+  // Future<void> _startBackgroundService() async {
+  //   try {
+  //     // Request activity recognition permission
+  //     if (await Permission.activityRecognition.isDenied) {
+  //       final result = await Permission.activityRecognition.request();
+  //       if (!result.isGranted) {
+  //         _showSnackbar("Activity Recognition permission is required for step counting");
+  //         return;
+  //       }
+  //     }
+  //
+  //     // Request battery optimization exemption
+  //     if (await Permission.ignoreBatteryOptimizations.isDenied) {
+  //       await Permission.ignoreBatteryOptimizations.request();
+  //     }
+  //
+  //     // Start the background service
+  //     await _backgroundService.startService();
+  //
+  //     if (mounted) {
+  //       setState(() {
+  //         _isServiceRunning = true;
+  //       });
+  //     }
+  //     _showSnackbar("Step counter started. It will continue counting even when the app is closed.");
+  //   } catch (e) {
+  //     print('Error starting background service: $e');
+  //     _showSnackbar('Failed to start background service: $e');
+  //   }
+  // }
 
   Future<void> _stopBackgroundService() async {
     try {
@@ -342,7 +369,6 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
           _steps = totalSteps;
         });
       }
-
       print('Fetched steps: $totalSteps');
     } catch (e) {
       print("Error fetching steps: $e");
