@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:android_intent_plus/android_intent.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -52,6 +53,7 @@ class _SplashScreenState extends State<SplashScreen>
     _controller.forward();
     resetIfNeeded();
     _checkAndDisableOldReminders();
+    resetStepTracker();
     _navigate();
   }
 
@@ -118,6 +120,8 @@ class _SplashScreenState extends State<SplashScreen>
       if (!batteryStatus.isGranted) {
         final result = await Permission.ignoreBatteryOptimizations.request();
         if (!result.isGranted) {
+          _showBatteryDialog();
+          print("deny calling");
           Fluttertoast.showToast(
             msg:
                 "Battery optimization permission denied. Background tracking may not work reliably.",
@@ -125,6 +129,44 @@ class _SplashScreenState extends State<SplashScreen>
         }
       }
     }
+  }
+
+  void _showBatteryDialog() {
+    if (!mounted || context == null) {
+      Fluttertoast.showToast(
+        msg: "Open settings manually to disable battery optimization.",
+      );
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Battery Optimization'),
+          content: Text(
+            'Please disable battery optimization for this app to ensure background features work properly.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final intent = AndroidIntent(
+                  action:
+                      'android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
+                  data: 'package:com.glowsutra',
+                );
+                await intent.launch();
+                Navigator.of(context).pop();
+              },
+              child: Text('Open Settings'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> resetIfNeeded() async {
@@ -208,7 +250,7 @@ class _SplashScreenState extends State<SplashScreen>
               .doc(userId)
               .update({'glasscount': 0, 'lastUpdated': Timestamp.now()});
           print("Firebase glasscount reset to 0.");
-          await _resetStepTracker(prefs, userId);
+          // await _resetStepTracker(prefs, userId);
         } catch (e) {
           print("Failed to update Firebase: $e");
         }
@@ -223,27 +265,59 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
-  Future<void> _resetStepTracker(SharedPreferences prefs, String userId) async {
+  Future<void> resetStepTracker() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+
+    if (userId == null) {
+      print("No user is logged in.");
+      return;
+    }
+
+    final docRef = FirebaseFirestore.instance
+        .collection("User")
+        .doc("fireid")
+        .collection("stepCounter")
+        .doc(userId);
+
     try {
-      await prefs.setInt('step_count', 0);
-      print("Step count reset locally.");
+      DocumentSnapshot<Map<String, dynamic>> snapshot = await docRef.get();
+      Timestamp? lastUpdatedTimestamp = snapshot.data()?['lastUpdated'];
 
-      final docRef = FirebaseFirestore.instance
-          .collection("User")
-          .doc("fireid")
-          .collection("stepCounter")
-          .doc(userId);
+      final now = DateTime.now();
+      bool shouldReset = false;
 
-      await docRef.set({
-        'steps': 0,
-        'lastUpdated': Timestamp.now(),
-      }, SetOptions(merge: true));
+      if (lastUpdatedTimestamp != null) {
+        final lastUpdated = lastUpdatedTimestamp.toDate();
 
-      print("Step count reset in Firebase (without modifying initial_steps).");
+        final lastUpdatedDate = DateTime(lastUpdated.year, lastUpdated.month, lastUpdated.day);
+        final currentDate = DateTime(now.year, now.month, now.day);
+
+        if (lastUpdatedDate != currentDate) {
+          shouldReset = true;
+        }
+      } else {
+        // No lastUpdated found, reset just to be safe
+        shouldReset = true;
+      }
+
+      if (shouldReset) {
+        await prefs.setInt('step_count', 0);
+        print("Step count reset locally.");
+
+        await docRef.set({
+          'steps': 0,
+          'lastUpdated': Timestamp.fromDate(now),
+        }, SetOptions(merge: true));
+        print("Step count reset in Firebase because it's a new day.");
+      } else {
+        print("Step count reset skipped, still the same day.");
+      }
     } catch (e) {
       print("Error resetting step tracker: $e");
     }
   }
+
 
   Future<void> _fetchAndSaveDeviceId() async {
     final deviceId = await getDeviceId(); // Get device ID
@@ -421,6 +495,7 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
               ),
               SizedBox(height: 20),
+              // Animated "Your skin care companion" tagline text
               AnimatedBuilder(
                 animation: _controller,
                 builder: (context, child) {

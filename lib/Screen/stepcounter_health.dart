@@ -310,6 +310,20 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
                     ),
                     SizedBox(height: 20),
                     // Steps card
+                    Row(
+                      children: [
+                        SizedBox(width: 10),
+                        Text(
+                          "Daily step count",
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 10),
                     Card(
                       elevation: 6,
                       shape: RoundedRectangleBorder(
@@ -371,6 +385,8 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
                           ),
                         ),
                       ),
+                    SizedBox(height: 10),
+                    // Text("Calories count"),
                   ],
                 ),
               ),
