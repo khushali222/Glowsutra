@@ -83,7 +83,9 @@ class _SplashScreenState extends State<SplashScreen>
   // }
 
   Future<void> _initPermissions() async {
-    print("Calling permissions for activity, notification, and battery optimization");
+    print(
+      "Calling permissions for activity, notification, and battery optimization",
+    );
 
     // 1. Request Physical Activity permission (Android 10+)
     final activityStatus = await Permission.activityRecognition.status;
@@ -91,7 +93,8 @@ class _SplashScreenState extends State<SplashScreen>
       final result = await Permission.activityRecognition.request();
       if (!result.isGranted) {
         Fluttertoast.showToast(
-          msg: "Activity Recognition permission denied. Step tracking may not work.",
+          msg:
+              "Activity Recognition permission denied. Step tracking may not work.",
         );
       }
     }
@@ -116,7 +119,8 @@ class _SplashScreenState extends State<SplashScreen>
         final result = await Permission.ignoreBatteryOptimizations.request();
         if (!result.isGranted) {
           Fluttertoast.showToast(
-            msg: "Battery optimization permission denied. Background tracking may not work reliably.",
+            msg:
+                "Battery optimization permission denied. Background tracking may not work reliably.",
           );
         }
       }
@@ -204,6 +208,7 @@ class _SplashScreenState extends State<SplashScreen>
               .doc(userId)
               .update({'glasscount': 0, 'lastUpdated': Timestamp.now()});
           print("Firebase glasscount reset to 0.");
+          await _resetStepTracker(prefs, userId);
         } catch (e) {
           print("Failed to update Firebase: $e");
         }
@@ -215,6 +220,28 @@ class _SplashScreenState extends State<SplashScreen>
         "Firestore document or 'lastUpdated' is missing, skipping reset logic.",
       );
       return; // exit early if no data
+    }
+  }
+
+  Future<void> _resetStepTracker(SharedPreferences prefs, String userId) async {
+    try {
+      await prefs.setInt('step_count', 0);
+      print("Step count reset locally.");
+
+      final docRef = FirebaseFirestore.instance
+          .collection("User")
+          .doc("fireid")
+          .collection("stepCounter")
+          .doc(userId);
+
+      await docRef.set({
+        'steps': 0,
+        'lastUpdated': Timestamp.now(),
+      }, SetOptions(merge: true));
+
+      print("Step count reset in Firebase (without modifying initial_steps).");
+    } catch (e) {
+      print("Error resetting step tracker: $e");
     }
   }
 
@@ -394,7 +421,6 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
               ),
               SizedBox(height: 20),
-              // Animated "Your skin care companion" tagline text
               AnimatedBuilder(
                 animation: _controller,
                 builder: (context, child) {

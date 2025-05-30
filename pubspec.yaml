@@ -74,6 +74,7 @@ dependencies:
   flutter_background_service_android: ^6.2.2
   health: ^12.2.0
   isolate_handler: ^1.0.2
+  android_intent_plus:
 
 dev_dependencies:
   flutter_test:
