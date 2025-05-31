@@ -320,6 +320,8 @@ class _SignupScreenState extends State<SignupScreen> {
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
   final _mobileController = TextEditingController();
+  final _ageController = TextEditingController();
+  final _weightController = TextEditingController();
   final _auth = FirebaseAuth.instance;
 
   bool _isLoading = false;
@@ -439,9 +441,11 @@ class _SignupScreenState extends State<SignupScreen> {
               'name': _nameController.text.trim(),
               'email': _emailController.text.trim(),
               'mobile': _mobileController.text.trim(),
+              'weight': _weightController.text.trim(),
+              'age': _ageController.text.trim(),
               'profile_photo': imageUrl,
             });
-
+        print("user weight  ${_weightController.text}");
         Fluttertoast.showToast(msg: 'Signup successful!');
         Navigator.pushAndRemoveUntil(
           context,
@@ -490,6 +494,7 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   AutovalidateMode _autoValidateMode = AutovalidateMode.disabled;
+
   @override
   Widget build(BuildContext context) {
     Color deepPurpleShade100 = Color(0xFFD1C4E9);
@@ -597,6 +602,31 @@ class _SignupScreenState extends State<SignupScreen> {
                   },
                 ),
               ),
+              SizedBox(height: 15),
+              Container(
+                child: TextFormField(
+                  controller: _ageController,
+                  keyboardType: TextInputType.number,
+                  decoration: _inputDecoration('Age', Icons.phone),
+                  // inputFormatters: [LengthLimitingTextInputFormatter(10)],
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'age required';
+                  },
+                ),
+              ),
+              SizedBox(height: 15),
+              Container(
+                child: TextFormField(
+                  controller: _weightController,
+                  keyboardType: TextInputType.number,
+                  decoration: _inputDecoration('Weight', Icons.phone),
+                  // inputFormatters: [LengthLimitingTextInputFormatter(10)],
+                  validator: (value) {
+                    if (value == null || value.isEmpty)
+                      return 'weight required';
+                  },
+                ),
+              ),
               SizedBox(height: 30),
               _isLoading
                   ? SpinKitCircle(color: Colors.black)
@@ -617,6 +647,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                     ),
                   ),
+
             ],
           ),
         ),

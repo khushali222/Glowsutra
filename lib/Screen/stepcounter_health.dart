@@ -21,7 +21,6 @@ final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 @pragma('vm:entry-point')
 Future<bool> onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
-  await Firebase.initializeApp();
 
   if (service is AndroidServiceInstance) {
     service.on('setAsForeground').listen((event) {
@@ -96,6 +95,7 @@ class StepCounterPage extends StatefulWidget {
 class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
   final Health _health = Health();
   int _steps = 0;
+  double _calories = 0.0;
   int? _androidVersion;
   String _status = '?';
   bool _isServiceRunning = false;
@@ -110,10 +110,11 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
     _getAndroidVersion();
     _initStepCounter();
     _loadSavedSteps();
+    _fetchWeightFromFirestore();
   }
 
   Future<void> _loadSavedSteps() async {
-    String? userId = FirebaseAuth.instance.currentUser?.uid;
+    final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) {
       print("No user logged in.");
       return;
@@ -128,15 +129,61 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
     final snapshot = await docRef.get();
 
     if (snapshot.exists) {
+      int savedSteps = snapshot.data()?["steps"] ?? 0;
       setState(() {
-        _steps = snapshot.data()?["steps"] ?? 0;
+        _steps = savedSteps;
         _isLoading = false;
       });
+      await _updateCalories();
     } else {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _updateCalories() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) {
+      print("No user logged in.");
+      return;
     }
 
-    print("Fetched steps: $_steps");
+    try {
+      final userDoc =
+          await FirebaseFirestore.instance.collection('User').doc(userId).get();
+
+      if (userDoc.exists) {
+        final weightStr = userDoc['weight'] ?? '70';
+        final weight = double.tryParse(weightStr) ?? 70.0;
+
+        // Calculate calories only if steps or weight changed meaningfully
+        final calories = _steps * weight * 0.0005;
+
+        final docRef = FirebaseFirestore.instance
+            .collection("User")
+            .doc(userId)
+            .collection("stepCounter")
+            .doc("today");
+
+        await docRef.set({
+          'steps': _steps,
+          'weight': weight,
+          'calories': calories,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+        // Only call setState if something actually changed
+        if (mounted) {
+          setState(() {
+            _weight = weight;
+            _calories = calories;
+          });
+        }
+      }
+    } catch (e) {
+      print("Error fetching or saving step data: $e");
+    }
   }
 
   Future<void> _initializeService() async {
@@ -260,6 +307,51 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
     super.dispose();
   }
 
+  double _weight = 0.0;
+  Future<void> _fetchWeightFromFirestore() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) {
+      print("No user logged in.");
+      return;
+    }
+
+    try {
+      DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance.collection('User').doc(userId).get();
+
+      if (userDoc.exists) {
+        final weightStr = userDoc['weight'] ?? '70'; // Get weight as string
+        final weight = double.tryParse(weightStr) ?? 70.0;
+        final calories = _steps * weight * 0.0005;
+
+        print("Fetched weight: $weightStr");
+        print("Calculated calories: $calories");
+
+        final docRef = FirebaseFirestore.instance
+            .collection("User")
+            .doc(userId)
+            .collection("stepCounter")
+            .doc("today"); // You can use a date string instead of "today"
+
+        await docRef.set({
+          'steps': _steps,
+          'weight': weight,
+          'calories': calories,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+        setState(() {
+          _weight = weight;
+          _calories = calories;
+        });
+
+        print("Step data saved to Firestore.");
+      }
+    } catch (e) {
+      print("Error fetching or saving step data: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -355,6 +447,35 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
                           ),
                           //SizedBox(height: 12),
                         ],
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    Card(
+                      elevation: 6,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      color: Colors.deepPurple.shade50,
+                      child: ListTile(
+                        title: Text(
+                          "Calories Today",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.deepPurple.shade500,
+                          ),
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 5),
+                          child: Text(
+                            '${_calories.toStringAsFixed(2)} kcal',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.deepPurple.shade900,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                     SizedBox(height: 50),

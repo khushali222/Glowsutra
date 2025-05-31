@@ -389,14 +389,20 @@
 //     );
 //   }
 // }
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-
-import 'Authentication/LoginScreen/login.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 
 class Profile extends StatefulWidget {
   const Profile({super.key});
@@ -408,8 +414,12 @@ class Profile extends StatefulWidget {
 class _ProfileState extends State<Profile> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   late User _user;
-  late String name, email, mobile, profilePhotoUrl;
   bool _isLoading = true;
+  bool _isEditing = false;
+
+  late String name, email, mobile, age, weight, profilePhotoUrl;
+  final _formKey = GlobalKey<FormState>();
+  File? _newImage;
 
   @override
   void initState() {
@@ -419,6 +429,7 @@ class _ProfileState extends State<Profile> {
   }
 
   Future<void> _loadUserDetails() async {
+    setState(() => _isLoading = true);
     try {
       DocumentSnapshot userDoc =
           await FirebaseFirestore.instance
@@ -431,33 +442,114 @@ class _ProfileState extends State<Profile> {
           name = userDoc['name'];
           email = userDoc['email'];
           mobile = userDoc['mobile'];
+          age = userDoc['age'];
+          weight = userDoc['weight'];
           profilePhotoUrl = userDoc['profile_photo'] ?? '';
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _isLoading = false;
         });
       }
     } catch (e) {
-      print("Error fetching user details: $e");
-      setState(() {
-        _isLoading = false;
-      });
+      print("Error: $e");
+    }
+    setState(() => _isLoading = false);
+  }
+
+  Future<File?> compressImage(File file) async {
+    final dir = await getTemporaryDirectory();
+    final targetPath = path.join(
+      dir.path,
+      '${DateTime.now().millisecondsSinceEpoch}.jpg',
+    );
+
+    final result = await FlutterImageCompress.compressAndGetFile(
+      file.absolute.path,
+      targetPath,
+      quality: 75,
+      minWidth: 800,
+      minHeight: 800,
+    );
+
+    if (result != null) {
+      final compressedFile = File(result.path);
+      print("Compressed size: ${await compressedFile.length() / 1024} KB");
+      return compressedFile;
+    }
+
+    return null;
+  }
+
+  Future<void> _pickImage() async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      final originalFile = File(picked.path);
+      final compressed = await compressImage(originalFile);
+
+      if (compressed != null) {
+        setState(() => _newImage = compressed);
+      } else {
+        // fallback if compression fails
+        setState(() => _newImage = originalFile);
+      }
     }
   }
 
-  Future<void> _logout() async {
+  Future<String?> _uploadToCloudinary(File imageFile) async {
+    const cloudName = 'doinw37vn';
+    const uploadPreset = 'glowsutra_image_preset';
+
+    final url = Uri.parse(
+      'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
+    );
+
+    final request =
+        http.MultipartRequest('POST', url)
+          ..fields['upload_preset'] = uploadPreset
+          ..files.add(
+            await http.MultipartFile.fromPath('file', imageFile.path),
+          );
+
+    final response = await request.send();
+
+    if (response.statusCode == 200) {
+      final responseData = await response.stream.bytesToString();
+      final result = json.decode(responseData);
+      return result['secure_url'];
+    } else {
+      Fluttertoast.showToast(msg: 'Image upload failed');
+      return null;
+    }
+  }
+
+  Future<void> _saveChanges() async {
+    if (!_formKey.currentState!.validate()) return;
+    _formKey.currentState!.save();
+
+    String newPhotoUrl = profilePhotoUrl;
+
+    if (_newImage != null) {
+      final uploadedUrl = await _uploadToCloudinary(_newImage!);
+      if (uploadedUrl != null) newPhotoUrl = uploadedUrl;
+    }
+
     try {
-      await _auth.signOut();
-      Fluttertoast.showToast(msg: 'Logged out successfully');
-      // Navigate to login screen after logout
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => LoginScreen()),
-      );
+      await FirebaseFirestore.instance
+          .collection('User')
+          .doc(_user.uid)
+          .update({
+            'name': name,
+            'mobile': mobile,
+            'age': age ?? "",
+            'weight': weight ?? "",
+            'profile_photo': newPhotoUrl,
+          });
+
+      Fluttertoast.showToast(msg: 'Profile updated successfully');
+      setState(() {
+        _isEditing = false;
+        profilePhotoUrl = newPhotoUrl;
+        _newImage = null;
+      });
     } catch (e) {
-      Fluttertoast.showToast(msg: 'Failed to log out: $e');
+      Fluttertoast.showToast(msg: 'Error updating profile');
     }
   }
 
@@ -465,96 +557,102 @@ class _ProfileState extends State<Profile> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
         title: Text("User Profile"),
+        centerTitle: true,
         backgroundColor: Colors.deepPurple[100],
+        actions: [
+          IconButton(
+            icon: Icon(_isEditing ? Icons.check : Icons.edit),
+            onPressed: () {
+              if (_isEditing) {
+                _saveChanges();
+              } else {
+                setState(() => _isEditing = true);
+              }
+            },
+          ),
+        ],
       ),
       body:
           _isLoading
               ? Center(child: SpinKitCircle(color: Colors.black))
               : SingleChildScrollView(
-                child: Column(
-                  children: [
-                    SizedBox(height: 10),
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 10),
-                        child:
-                            profilePhotoUrl.isNotEmpty
-                                ? CachedNetworkImage(
-                                  imageUrl: profilePhotoUrl.replaceFirst(
-                                    'upload/',
-                                    'upload/w_200,h_200,c_fill,f_auto,q_auto/',
-                                  ),
-                                  imageBuilder:
-                                      (context, imageProvider) => CircleAvatar(
-                                        radius: 100,
-                                        backgroundImage: imageProvider,
-                                        backgroundColor: Colors.grey[300],
-                                      ),
-                                  placeholder:
-                                      (context, url) => CircleAvatar(
-                                        radius: 100,
-                                        backgroundColor: Colors.grey[300],
-                                        child: SpinKitFadingCircle(
-                                          color: Colors.transparent,
-                                          size: 50,
-                                        ),
-                                      ),
-                                  errorWidget:
-                                      (context, url, error) => CircleAvatar(
-                                        radius: 100,
-                                        backgroundColor: Colors.grey[300],
-                                        child: Icon(
-                                          Icons.error,
-                                          size: 50,
-                                          color: Colors.red,
-                                        ),
-                                      ),
-                                  fadeInDuration: Duration(milliseconds: 300),
-                                  fadeOutDuration: Duration(milliseconds: 100),
-                                )
-                                : CircleAvatar(
-                                  radius: 100,
-                                  backgroundColor: Colors.grey[300],
-                                  child: Icon(
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 20),
+                      GestureDetector(
+                        onTap: _isEditing ? _pickImage : null,
+                        child: CircleAvatar(
+                          radius: 100,
+                          backgroundColor: Colors.grey[300],
+                          backgroundImage:
+                              _newImage != null
+                                  ? FileImage(_newImage!)
+                                  : (profilePhotoUrl.isNotEmpty
+                                          ? NetworkImage(profilePhotoUrl)
+                                          : null)
+                                      as ImageProvider?,
+                          child:
+                              profilePhotoUrl.isEmpty && _newImage == null
+                                  ? Icon(
                                     Icons.person,
                                     size: 50,
                                     color: Colors.grey,
-                                  ),
-                                ),
+                                  )
+                                  : null,
+                        ),
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        children: [
-                          _buildProfileDetail(Icons.person, "Name", name),
-                          Divider(),
-                          _buildProfileDetail(Icons.email, "Email", email),
-                          Divider(),
-                          _buildProfileDetail(
-                            Icons.phone,
-                            "Mobile Number",
-                            mobile,
-                          ),
-                          Divider(),
-                          GestureDetector(
-                            onTap: _logout,
-                            child: ListTile(
-                              leading: Icon(
-                                Icons.logout,
-                                color: Colors.deepPurple.shade300,
-                                size: 30,
-                              ),
-                              title: Text("Log out"),
-                            ),
-                          ),
-                          Divider(),
-                        ],
+                      const SizedBox(height: 20),
+                      _buildEditableField(
+                        Icons.person,
+                        "Name",
+                        name,
+                        (val) => name = val,
                       ),
-                    ),
-                  ],
+                      Divider(),
+                      _buildProfileDetail(Icons.email, "Email", email),
+                      Divider(),
+                      _buildEditableField(
+                        Icons.phone,
+                        "Mobile Number",
+                        mobile,
+                        (val) => mobile = val,
+                      ),
+                      Divider(),
+                      Divider(),
+                      _buildEditableField(
+                        Icons.support_agent,
+                        "Age",
+                        age.toString(),
+                        (val) => age = val,
+                      ),
+                      Divider(),
+                      _buildEditableField(
+                        Icons.monitor_weight,
+                        "Weight",
+                        weight.toString(),
+                        (val) => weight = val,
+                      ),
+                      Divider(),
+                      GestureDetector(
+                        onTap: _logout,
+                        child: ListTile(
+                          leading: Icon(
+                            Icons.logout,
+                            color: Colors.deepPurple.shade300,
+                            size: 30,
+                          ),
+                          title: Text("Log out"),
+                        ),
+                      ),
+                      Divider(),
+                      SizedBox(
+                        height: 70,
+                      ),
+                    ],
+                  ),
                 ),
               ),
     );
@@ -564,7 +662,6 @@ class _ProfileState extends State<Profile> {
     return Container(
       padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, color: Colors.deepPurple.shade300, size: 30),
           const SizedBox(width: 15),
@@ -584,8 +681,6 @@ class _ProfileState extends State<Profile> {
                     fontWeight: FontWeight.bold,
                     color: Colors.deepPurple.shade300,
                   ),
-                  overflow: TextOverflow.visible,
-                  softWrap: true,
                 ),
               ],
             ),
@@ -593,5 +688,62 @@ class _ProfileState extends State<Profile> {
         ],
       ),
     );
+  }
+
+  Widget _buildEditableField(
+    IconData icon,
+    String label,
+    String value,
+    Function(String) onSaved,
+  ) {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.deepPurple.shade300, size: 30),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 4),
+                _isEditing
+                    ? TextFormField(
+                      decoration: InputDecoration(border: InputBorder.none),
+                      initialValue: value,
+                      onSaved: (val) => onSaved(val ?? ''),
+                      validator:
+                          (val) =>
+                              val == null || val.isEmpty ? "Required" : null,
+                      style: TextStyle(fontSize: 16),
+                    )
+                    : Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepPurple.shade300,
+                      ),
+                    ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _logout() async {
+    try {
+      await _auth.signOut();
+      Fluttertoast.showToast(msg: 'Logged out successfully');
+      Navigator.pushReplacementNamed(context, '/login'); // or push LoginScreen
+    } catch (e) {
+      Fluttertoast.showToast(msg: 'Logout failed');
+    }
   }
 }
