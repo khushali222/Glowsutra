@@ -404,6 +404,8 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
+import 'Authentication/LoginScreen/login.dart';
+
 class Profile extends StatefulWidget {
   const Profile({super.key});
 
@@ -575,18 +577,22 @@ class _ProfileState extends State<Profile> {
       ),
       body:
           _isLoading
-              ? Center(child: SpinKitCircle(color: Colors.black))
+              ? const Center(child: SpinKitCircle(color: Colors.black))
               : SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 24,
+                ),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     children: [
-                      const SizedBox(height: 20),
+                      // Profile Picture
                       GestureDetector(
                         onTap: _isEditing ? _pickImage : null,
                         child: CircleAvatar(
-                          radius: 100,
-                          backgroundColor: Colors.grey[300],
+                          radius: 70,
+                          backgroundColor: Colors.deepPurple.shade100,
                           backgroundImage:
                               _newImage != null
                                   ? FileImage(_newImage!)
@@ -595,8 +601,8 @@ class _ProfileState extends State<Profile> {
                                           : null)
                                       as ImageProvider?,
                           child:
-                              profilePhotoUrl.isEmpty && _newImage == null
-                                  ? Icon(
+                              (_newImage == null && profilePhotoUrl.isEmpty)
+                                  ? const Icon(
                                     Icons.person,
                                     size: 50,
                                     color: Colors.grey,
@@ -604,53 +610,61 @@ class _ProfileState extends State<Profile> {
                                   : null,
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      _buildEditableField(
-                        Icons.person,
-                        "Name",
-                        name,
-                        (val) => name = val,
+                      const SizedBox(height: 10),
+                      // Card UI
+                      _profileCard(
+                        icon: Icons.person,
+                        label: "Name",
+                        value: name,
+                        onSaved: (val) => name = val,
+                        editable: _isEditing,
                       ),
-                      Divider(),
-                      _buildProfileDetail(Icons.email, "Email", email),
-                      Divider(),
-                      _buildEditableField(
-                        Icons.phone,
-                        "Mobile Number",
-                        mobile,
-                        (val) => mobile = val,
+                      _profileCard(
+                        icon: Icons.email,
+                        label: "Email",
+                        value: email,
+                        editable: false,
                       ),
-                      Divider(),
-                      Divider(),
-                      _buildEditableField(
-                        Icons.support_agent,
-                        "Age",
-                        age.toString(),
-                        (val) => age = val,
+                      _profileCard(
+                        icon: Icons.phone,
+                        label: "Mobile",
+                        value: mobile,
+                        onSaved: (val) => mobile = val,
+                        editable: _isEditing,
                       ),
-                      Divider(),
-                      _buildEditableField(
-                        Icons.monitor_weight,
-                        "Weight",
-                        weight.toString(),
-                        (val) => weight = val,
+                      _profileCard(
+                        icon: Icons.cake,
+                        label: "Age",
+                        value: age,
+                        onSaved: (val) => age = val,
+                        editable: _isEditing,
                       ),
-                      Divider(),
-                      GestureDetector(
-                        onTap: _logout,
+                      _profileCard(
+                        icon: Icons.monitor_weight_rounded,
+                        label: "Weight",
+                        value: weight,
+                        onSaved: (val) => weight = val,
+                        editable: _isEditing,
+                      ),
+                      const SizedBox(height: 5),
+                      // Logout
+                      Material(
+                        elevation: 2,
+                        borderRadius: BorderRadius.circular(12),
                         child: ListTile(
-                          leading: Icon(
-                            Icons.logout,
-                            color: Colors.deepPurple.shade300,
-                            size: 30,
+                          tileColor: Colors.deepPurple.shade50,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          title: Text("Log out"),
+                          leading: Icon(Icons.logout, color: Colors.deepPurple),
+                          title: const Text(
+                            "Log out",
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          onTap: _logout,
                         ),
                       ),
-                      Divider(),
-                      SizedBox(
-                        height: 70,
-                      ),
+                      const SizedBox(height: 40),
                     ],
                   ),
                 ),
@@ -658,79 +672,78 @@ class _ProfileState extends State<Profile> {
     );
   }
 
-  Widget _buildProfileDetail(IconData icon, String title, String value) {
+  Widget _profileCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    bool editable = true,
+    Function(String)? onSaved,
+  }) {
     return Container(
-      padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.deepPurple.shade300, size: 30),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.deepPurple.shade300,
-                  ),
-                ),
-              ],
-            ),
-          ),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 8)),
         ],
       ),
-    );
-  }
-
-  Widget _buildEditableField(
-    IconData icon,
-    String label,
-    String value,
-    Function(String) onSaved,
-  ) {
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Colors.deepPurple.shade300, size: 30),
-          const SizedBox(width: 15),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.deepPurple.shade50,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: Colors.deepPurple, size: 22),
+          ),
+          const SizedBox(width: 14),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 4),
-                _isEditing
+            child:
+                _isEditing && editable && onSaved != null
                     ? TextFormField(
-                      decoration: InputDecoration(border: InputBorder.none),
                       initialValue: value,
                       onSaved: (val) => onSaved(val ?? ''),
                       validator:
                           (val) =>
                               val == null || val.isEmpty ? "Required" : null,
-                      style: TextStyle(fontSize: 16),
-                    )
-                    : Text(
-                      value,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.deepPurple.shade300,
+                      decoration: InputDecoration(
+                        labelText: label,
+                        labelStyle: TextStyle(
+                          fontSize: 16,
+                          color: Colors.deepPurple.shade300,
+                        ),
+                        border: InputBorder.none,
                       ),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    )
+                    : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          value,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.deepPurple.shade400,
+                          ),
+                        ),
+                      ],
                     ),
-              ],
-            ),
           ),
         ],
       ),
@@ -741,9 +754,13 @@ class _ProfileState extends State<Profile> {
     try {
       await _auth.signOut();
       Fluttertoast.showToast(msg: 'Logged out successfully');
-      Navigator.pushReplacementNamed(context, '/login'); // or push LoginScreen
+      // Navigate to login screen after logout
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+      );
     } catch (e) {
-      Fluttertoast.showToast(msg: 'Logout failed');
+      Fluttertoast.showToast(msg: 'Failed to log out: $e');
     }
   }
 }

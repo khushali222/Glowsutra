@@ -218,7 +218,8 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
     String acneStatus,
     String skinTone,
     String wrinkleStatus,
-  ) {
+  )
+  {
     String precautions = "Skin Care Tips: \n";
 
     // Tips based on skin type

@@ -352,165 +352,233 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
     }
   }
 
+  final int _dailyGoal = 6000;
   @override
   Widget build(BuildContext context) {
+    double progress = (_steps / _dailyGoal).clamp(0.0, 1.0);
+
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        backgroundColor: Colors.deepPurple[100],
-        elevation: 0,
-        title: Text("Step Tracker"),
+        backgroundColor: Colors.deepPurple.shade100,
+        title: const Text(
+          "Step Tracker",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+        ),
+        elevation: 4,
       ),
       body:
           _isLoading
-              ? Center(child: SpinKitCircle(color: Colors.black))
-              : Padding(
-                padding: const EdgeInsets.only(left: 16, right: 16),
+              ? const Center(child: SpinKitCircle(color: Colors.black))
+              : SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 20,
+                ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(height: 20),
+                    // Date
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.calendar_today, color: Colors.deepPurple),
-                        SizedBox(width: 8),
+                        const Icon(Icons.calendar_today, color: Colors.black),
+                        const SizedBox(width: 10),
                         Text(
-                          DateFormat('EEEE, MMMM d, yyyy').format(
-                            DateTime.now(),
-                          ), // e.g., Wednesday, May 29, 2025
+                          DateFormat(
+                            'EEEE, MMMM d, yyyy',
+                          ).format(DateTime.now()),
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 18,
                             fontWeight: FontWeight.w600,
-                            color: Colors.deepPurple.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 20),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        height: 250,
-                        // width: double.infinity,
-                        color: Colors.deepPurple[50],
-                        child: Image.network(
-                          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTHeR9TqVs3iUA3fRSZ9lkUrZzvH-lgmeozxA&s",
-                          fit: BoxFit.fill,
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 20),
-                    // Steps card
-                    Row(
-                      children: [
-                        SizedBox(width: 10),
-                        Text(
-                          "Daily step count",
-                          style: TextStyle(
+                            // color: Colors.deepPurple.shade800,
                             color: Colors.black,
-                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Hero image
+                    Center(
+                      child: CircleAvatar(
+                        radius: 100,
+                        child: Image.network(
+                          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcREg4rw59UEsRoChPqlq3mNOWfEsIZAV5fS_zxSPySmQmsAgL2NWbMGIj-h4Sy3Rb77kTU&usqp=CAU",
+                          height: 200,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 25),
+                    // Daily Goal Progress
+                    Text(
+                      "Daily Goal Progress",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 14,
+                        backgroundColor: Colors.deepPurple.shade100,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Colors.deepPurple,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '$_steps steps',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text(
+                          'Goal: $_dailyGoal',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
                             fontSize: 16,
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: 10),
-                    Card(
-                      elevation: 6,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      color: Colors.deepPurple.shade50,
-                      child: Column(
-                        children: [
-                          ListTile(
-                            title: Text(
-                              "Steps Today",
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.deepPurple.shade500,
-                              ),
-                            ),
-                            subtitle: Padding(
-                              padding: const EdgeInsets.only(top: 5, bottom: 5),
-                              child: Text(
-                                '$_steps',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.deepPurple.shade900,
-                                ),
-                              ),
-                            ),
-                          ),
-                          //SizedBox(height: 12),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    Card(
-                      elevation: 6,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      color: Colors.deepPurple.shade50,
-                      child: ListTile(
-                        title: Text(
-                          "Calories Today",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.deepPurple.shade500,
-                          ),
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 5),
-                          child: Text(
-                            '${_calories.toStringAsFixed(2)} kcal',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.deepPurple.shade900,
-                            ),
-                          ),
+                    const SizedBox(height: 10),
+                    Center(
+                      child: Text(
+                        progress >= 1.0
+                            ? "Goal achieved!"
+                            : progress >= 0.75
+                            ? "Almost there!"
+                            : progress >= 0.5
+                            ? "Keep going, you're halfway there!"
+                            : "Let's get moving!",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 16,
+                          color: Colors.deepPurple.shade600,
                         ),
                       ),
                     ),
-                    SizedBox(height: 50),
-                    if (_androidVersion != null && _androidVersion! < 13)
-                      SizedBox(height: 16),
-                    if (_androidVersion != null && _androidVersion! < 13)
-                      Card(
-                        elevation: 4,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: ListTile(
-                          leading: Icon(
-                            _isServiceRunning
-                                ? Icons.play_circle_fill
-                                : Icons.stop_circle,
-                            color:
-                                _isServiceRunning ? Colors.green : Colors.red,
-                          ),
-                          title: Text("Background Service"),
-                          subtitle: Text(
-                            _isServiceRunning ? "Running" : "Stopped",
-                            style: TextStyle(
-                              color:
-                                  _isServiceRunning ? Colors.green : Colors.red,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    SizedBox(height: 10),
-                    // Text("Calories count"),
+                    const SizedBox(height: 25),
+                    // Steps Card
+                    _InfoCard(
+                      title: "Steps Today",
+                      value: '$_steps',
+                      icon: Icons.directions_walk,
+                      iconColor: Colors.deepPurple,
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Calories Card
+                    _InfoCard(
+                      title: "Calories Burned",
+                      value: "${_calories.toStringAsFixed(2)} kcal",
+                      icon: Icons.local_fire_department,
+                      iconColor: Colors.deepOrange,
+                    ),
+                    const SizedBox(height: 30),
+
+                    // Background Service Status (if applicable)
+                    // if (_androidVersion != null && _androidVersion! < 13)
+                    //   Card(
+                    //     shape: RoundedRectangleBorder(
+                    //       borderRadius: BorderRadius.circular(16),
+                    //     ),
+                    //     elevation: 3,
+                    //     child: ListTile(
+                    //       leading: Icon(
+                    //         _isServiceRunning
+                    //             ? Icons.play_circle_fill
+                    //             : Icons.stop_circle,
+                    //         color:
+                    //             _isServiceRunning ? Colors.green : Colors.red,
+                    //         size: 32,
+                    //       ),
+                    //       title: const Text(
+                    //         "Background Service",
+                    //         style: TextStyle(fontWeight: FontWeight.bold),
+                    //       ),
+                    //       subtitle: Text(
+                    //         _isServiceRunning ? "Running" : "Stopped",
+                    //         style: TextStyle(
+                    //           color:
+                    //               _isServiceRunning ? Colors.green : Colors.red,
+                    //           fontWeight: FontWeight.w600,
+                    //         ),
+                    //       ),
+                    //     ),
+                    //   ),
                   ],
                 ),
               ),
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color iconColor;
+
+  const _InfoCard({
+    Key? key,
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.iconColor,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 28,
+              backgroundColor: iconColor.withOpacity(0.2),
+              child: Icon(icon, size: 30, color: iconColor),
+            ),
+            const SizedBox(width: 18),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepPurple.shade700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.deepPurple.shade900,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
