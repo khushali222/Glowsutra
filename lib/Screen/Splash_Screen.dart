@@ -27,31 +27,59 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _opacityAnimation;
   late Animation<double> _scaleAnimation;
   String manufacturer = '';
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   _initPermissions();
+  //   _fetchAndSaveDeviceId();
+  //   // Initializing the animation controller
+  //   _controller = AnimationController(
+  //     duration: const Duration(seconds: 3), // Duration for the animation
+  //     vsync: this,
+  //   );
+  //
+  //   // Fade-in animation for the "Your skin care companion" text
+  //   _opacityAnimation = Tween<double>(
+  //     begin: 0.0,
+  //     end: 1.0,
+  //   ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
+  //
+  //   // Scale animation for the "Your skin care companion" text
+  //   _scaleAnimation = Tween<double>(
+  //     begin: 0.8,
+  //     end: 1.0,
+  //   ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+  //
+  //   // Start the animation
+  //   _controller.forward();
+  //   resetIfNeeded();
+  //   _checkAndDisableOldReminders();
+  //   resetStepTracker();
+  //   _navigate();
+  // }
   @override
   void initState() {
     super.initState();
-    _initPermissions();
-    _fetchAndSaveDeviceId();
-    // Initializing the animation controller
+
+    // Initialize animation controller and animations first
     _controller = AnimationController(
-      duration: const Duration(seconds: 3), // Duration for the animation
+      duration: const Duration(seconds: 3),
       vsync: this,
     );
 
-    // Fade-in animation for the "Your skin care companion" text
     _opacityAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
 
-    // Scale animation for the "Your skin care companion" text
     _scaleAnimation = Tween<double>(
       begin: 0.8,
       end: 1.0,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
-    // Start the animation
     _controller.forward();
+    _initPermissions();
+    _fetchAndSaveDeviceId();
     resetIfNeeded();
     _checkAndDisableOldReminders();
     resetStepTracker();

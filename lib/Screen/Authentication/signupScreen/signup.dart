@@ -443,6 +443,7 @@ class _SignupScreenState extends State<SignupScreen> {
               'mobile': _mobileController.text.trim(),
               'weight': _weightController.text.trim(),
               'age': _ageController.text.trim(),
+              'password': _passwordController.text.trim(),
               'profile_photo': imageUrl,
             });
         print("user weight  ${_weightController.text}");

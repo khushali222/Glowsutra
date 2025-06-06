@@ -17,159 +17,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
-// @pragma('vm:entry-point')
-// Future<bool> onStart(ServiceInstance service) async {
-//   DartPluginRegistrant.ensureInitialized();
-//   await Firebase.initializeApp();
-//
-//   if (service is AndroidServiceInstance) {
-//     service.on('setAsForeground').listen((event) {
-//       service.setAsForegroundService();
-//     });
-//   }
-//
-//   service.on('stopService').listen((event) {
-//     service.stopSelf();
-//   });
-//
-//   try {
-//     final pedometer = Pedometer.stepCountStream;
-//     final userId = FirebaseAuth.instance.currentUser?.uid;
-//     tz.initializeTimeZones();
-//     if (userId == null) {
-//       print("No user is logged in.");
-//       return false;
-//     }
-//
-//     final docRef = FirebaseFirestore.instance
-//         .collection("User")
-//         .doc("fireid")
-//         .collection("stepCounter")
-//         .doc(userId);
-//
-//     DocumentSnapshot<Map<String, dynamic>> snapshot = await docRef.get();
-//     int? initialStepCount = snapshot.data()?['initial_steps'];
-//    print("initil steps $initialStepCount");
-//     pedometer.listen((event) async {
-//       if (initialStepCount == null) {
-//         initialStepCount = event.steps;
-//         await docRef.set({
-//           "initial_steps": initialStepCount,
-//         }, SetOptions(merge: true));
-//       }
-//
-//       int stepsSinceStart = event.steps - initialStepCount!;
-//       if (stepsSinceStart < 0) stepsSinceStart = 0;
-//
-//       final currentTimeZone = tz.local.name;
-//
-//       await docRef.set({
-//         "steps": stepsSinceStart,
-//         "timezone": currentTimeZone,
-//         "lastUpdated": Timestamp.now(),
-//       }, SetOptions(merge: true));
-//
-//       if (service is AndroidServiceInstance) {
-//         service.setForegroundNotificationInfo(
-//           title: "Step Counter Running",
-//           content: "Steps: $stepsSinceStart",
-//         );
-//       }
-//       print("Step event: ${event.steps}");
-//       service.invoke('updateSteps', {'steps': stepsSinceStart});
-//       print("Current step $stepsSinceStart");
-//       print("Event steps: ${event.steps}, Initial steps: $initialStepCount");
-//     });
-//
-//     return true;
-//   } catch (e) {
-//     print('Error in background service: $e');
-//     return false;
-//   }
-// }
 
-//this normal count with back count
-// @pragma('vm:entry-point')
-// Future<bool> onStart(ServiceInstance service) async {
-//   DartPluginRegistrant.ensureInitialized();
-//   print('[onStart] Background service starting...');
-//
-//   await Firebase.initializeApp();
-//   print('[onStart] Firebase initialized successfully.');
-//
-//   tz.initializeTimeZones();
-//   print('[onStart] Timezones initialized.');
-//
-//   if (service is AndroidServiceInstance) {
-//     service.on('setAsForeground').listen((event) {
-//       service.setAsForegroundService();
-//     });
-//   }
-//
-//   service.on('stopService').listen((event) {
-//     service.stopSelf();
-//   });
-//
-//   try {
-//     final pedometer = Pedometer.stepCountStream;
-//     final userId = FirebaseAuth.instance.currentUser?.uid;
-//
-//     if (userId == null) {
-//       print("[onStart] No user is logged in.");
-//       return false;
-//     }
-//
-//     final docRef = FirebaseFirestore.instance
-//         .collection("User")
-//         .doc("fireid") //
-//         .collection("stepCounter")
-//         .doc(userId);
-//
-//     DocumentSnapshot<Map<String, dynamic>> snapshot = await docRef.get();
-//     int? initialStepCount = snapshot.data()?['initial_steps'];
-//
-//     pedometer.listen((event) async {
-//       print("[onStart] Step event: ${event.steps}");
-//
-//       // Check and reset if sensor step count is lower than stored one
-//       if (initialStepCount == null || event.steps < initialStepCount!) {
-//         print("[onStart] Setting or resetting initial step count.");
-//         initialStepCount = event.steps;
-//         await docRef.set({
-//           "initial_steps": initialStepCount,
-//           "lastUpdated": Timestamp.now(),
-//           "timezone": tz.local.name,
-//         }, SetOptions(merge: true));
-//         return; // Skip this event
-//       }
-//
-//       int stepsSinceStart = event.steps - initialStepCount!;
-//       if (stepsSinceStart < 0) stepsSinceStart = 0;
-//
-//       print("[onStart] Steps updated: $stepsSinceStart");
-//
-//       await docRef.set({
-//         "steps": stepsSinceStart,
-//         "lastUpdated": Timestamp.now(),
-//         "timezone": tz.local.name,
-//       }, SetOptions(merge: true));
-//
-//       if (service is AndroidServiceInstance) {
-//         service.setForegroundNotificationInfo(
-//           title: "Step Counter Running",
-//           content: "Steps: $stepsSinceStart",
-//         );
-//       }
-//
-//       service.invoke('updateSteps', {'steps': stepsSinceStart});
-//     });
-//
-//     return true;
-//   } catch (e) {
-//     print('[onStart] Error in background service: $e');
-//     return false;
-//   }
-// }
 @pragma('vm:entry-point')
 Future<bool> onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
@@ -701,6 +549,41 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
                   ],
                 ),
               ),
+      // bottomSheet: BottomSheet(
+      //   enableDrag: false,
+      //   onClosing: () {
+      //     Navigator.pop(context);
+      //   },
+      //   builder: (BuildContext context) {
+      //     return Container(
+      //       height: 250,
+      //       padding: EdgeInsets.all(16),
+      //       decoration: BoxDecoration(
+      //         color: Colors.white,
+      //         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      //       ),
+      //       child: Column(
+      //         children: [
+      //           GestureDetector(
+      //             onTap: () {
+      //               Navigator.pop(context);
+      //             },
+      //             child: Icon(Icons.close),
+      //           ),
+      //           Text("This is a bottom sheet"),
+      //           ElevatedButton(
+      //             child: Text("Open Setting"),
+      //             onPressed: () {
+      //               print("clling setting");
+      //               openAppSettings();
+      //               Navigator.pop(context);
+      //             },
+      //           ),
+      //         ],
+      //       ),
+      //     );
+      //   },
+      // ),
     );
   }
 }
