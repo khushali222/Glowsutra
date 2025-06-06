@@ -6,6 +6,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'Authentication/LoginScreen/login.dart';
@@ -25,7 +26,7 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _controller;
   late Animation<double> _opacityAnimation;
   late Animation<double> _scaleAnimation;
-
+  String manufacturer = '';
   @override
   void initState() {
     super.initState();
@@ -57,34 +58,9 @@ class _SplashScreenState extends State<SplashScreen>
     _navigate();
   }
 
-  // Future<void> _initPermissions() async {
-  //   print(" caling permission of notification nd both ");
-  //   // Request Physical Activity permission (Android 10+)
-  //   final activityStatus = await Permission.activityRecognition.status;
-  //   if (!activityStatus.isGranted) {
-  //     final result = await Permission.activityRecognition.request();
-  //     if (!result.isGranted) {
-  //       Fluttertoast.showToast(
-  //         msg: "Activity Recognition permission denied. Step tracking will not work.",
-  //       );
-  //     }
-  //   }
-  //
-  //   // Request Notification permission (Android 13+)
-  //   if (Platform.isAndroid) {
-  //     final notificationStatus = await Permission.notification.status;
-  //     if (!notificationStatus.isGranted) {
-  //       final result = await Permission.notification.request();
-  //       if (!result.isGranted) {
-  //         Fluttertoast.showToast(
-  //           msg: "Notification permission denied. Reminders may not show.",
-  //         );
-  //       }
-  //     }
-  //   }
-  // }
-
   Future<void> _initPermissions() async {
+    final prefs = await SharedPreferences.getInstance();
+
     print(
       "Calling permissions for activity, notification, and battery optimization",
     );
@@ -120,8 +96,6 @@ class _SplashScreenState extends State<SplashScreen>
       if (!batteryStatus.isGranted) {
         final result = await Permission.ignoreBatteryOptimizations.request();
         if (!result.isGranted) {
-          _showBatteryDialog();
-          print("deny calling");
           Fluttertoast.showToast(
             msg:
                 "Battery optimization permission denied. Background tracking may not work reliably.",
@@ -129,44 +103,69 @@ class _SplashScreenState extends State<SplashScreen>
         }
       }
     }
+
+    //autostart background
+    bool hasPromptedAutoStart = prefs.getBool('auto_start_prompted') ?? false;
+    if ((manufacturer.contains('xiaomi') ||
+            manufacturer.contains('poco') ||
+            manufacturer.contains('oppo') ||
+            manufacturer.contains('vivo') ||
+            manufacturer.contains('realme')) &&
+        !hasPromptedAutoStart) {
+      Fluttertoast.showToast(
+        msg: "Enable Auto-Start for reliable background step tracking.",
+      );
+      await openAutoStartSettings();
+
+      await prefs.setBool('auto_start_prompted', true);
+    }
   }
 
-  void _showBatteryDialog() {
-    if (!mounted || context == null) {
-      Fluttertoast.showToast(
-        msg: "Open settings manually to disable battery optimization.",
+  Future<void> openAutoStartSettings() async {
+    AndroidIntent? intent;
+
+    if (manufacturer.contains('xiaomi') || manufacturer.contains('poco')) {
+      intent = AndroidIntent(
+        action: 'miui.intent.action.OP_AUTO_START',
+        package: 'com.miui.securitycenter',
       );
-      return;
+    } else if (manufacturer.contains('oppo')) {
+      intent = AndroidIntent(
+        componentName:
+            'com.coloros.safecenter/.startupapp.StartupAppListActivity',
+      );
+    } else if (manufacturer.contains('vivo')) {
+      intent = AndroidIntent(
+        componentName: 'com.iqoo.secure/.safeguard.PurviewTabActivity',
+      );
+    } else if (manufacturer.contains('letv')) {
+      intent = AndroidIntent(
+        componentName: 'com.letv.android.letvsafe/.BackgroundAppManageActivity',
+      );
+    } else if (manufacturer.contains('asus')) {
+      intent = AndroidIntent(
+        action: 'android.settings.APP_NOTIFICATION_SETTINGS',
+      );
+    } else {
+      // Fallback: Open your app's Manage App Info page
+      final packageInfo = await PackageInfo.fromPlatform();
+      intent = AndroidIntent(
+        action: 'android.settings.APPLICATION_DETAILS_SETTINGS',
+        data: 'package:${packageInfo.packageName}',
+      );
     }
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text('Battery Optimization'),
-          content: Text(
-            'Please disable battery optimization for this app to ensure background features work properly.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () async {
-                final intent = AndroidIntent(
-                  action:
-                      'android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
-                  data: 'package:com.glowsutra',
-                );
-                await intent.launch();
-                Navigator.of(context).pop();
-              },
-              child: Text('Open Settings'),
-            ),
-          ],
-        );
-      },
-    );
+
+    try {
+      await intent.launch();
+      Fluttertoast.showToast(
+        msg: 'Please enable Auto-Start / Background management manually.',
+      );
+    } catch (e) {
+      print('Error opening auto-start settings: $e');
+      Fluttertoast.showToast(
+        msg: 'Could not open auto-start settings. Please enable manually.',
+      );
+    }
   }
 
   Future<void> resetIfNeeded() async {
@@ -290,7 +289,11 @@ class _SplashScreenState extends State<SplashScreen>
       if (lastUpdatedTimestamp != null) {
         final lastUpdated = lastUpdatedTimestamp.toDate();
 
-        final lastUpdatedDate = DateTime(lastUpdated.year, lastUpdated.month, lastUpdated.day);
+        final lastUpdatedDate = DateTime(
+          lastUpdated.year,
+          lastUpdated.month,
+          lastUpdated.day,
+        );
         final currentDate = DateTime(now.year, now.month, now.day);
 
         if (lastUpdatedDate != currentDate) {
@@ -318,14 +321,10 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
-
   Future<void> _fetchAndSaveDeviceId() async {
-    final deviceId = await getDeviceId(); // Get device ID
+    final deviceId = await getDeviceId();
     final prefs = await SharedPreferences.getInstance();
-    prefs.setString(
-      'device_id',
-      deviceId,
-    ); // Save device ID in SharedPreferences
+    prefs.setString('device_id', deviceId);
     print("Device ID saved in SharedPreferences: $deviceId");
   }
 
@@ -333,9 +332,11 @@ class _SplashScreenState extends State<SplashScreen>
     final deviceInfo = DeviceInfoPlugin();
     if (Platform.isIOS) {
       final iosInfo = await deviceInfo.iosInfo;
+      manufacturer = 'apple';
       return iosInfo.identifierForVendor ?? "unknown_device_id";
     } else if (Platform.isAndroid) {
       final androidInfo = await deviceInfo.androidInfo;
+      manufacturer = androidInfo.manufacturer?.toLowerCase() ?? '';
       return androidInfo.id ?? "unknown_device_id";
     }
     return "unknown_device_id";

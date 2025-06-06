@@ -75,6 +75,8 @@ dependencies:
   health: ^12.2.0
   isolate_handler: ^1.0.2
   android_intent_plus:
+  package_info_plus:
+#  auto_start_flutter:
     
 
 

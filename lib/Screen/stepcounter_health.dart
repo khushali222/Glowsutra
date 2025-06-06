@@ -17,25 +17,178 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
+// @pragma('vm:entry-point')
+// Future<bool> onStart(ServiceInstance service) async {
+//   DartPluginRegistrant.ensureInitialized();
+//   await Firebase.initializeApp();
+//
+//   if (service is AndroidServiceInstance) {
+//     service.on('setAsForeground').listen((event) {
+//       service.setAsForegroundService();
+//     });
+//   }
+//
+//   service.on('stopService').listen((event) {
+//     service.stopSelf();
+//   });
+//
+//   try {
+//     final pedometer = Pedometer.stepCountStream;
+//     final userId = FirebaseAuth.instance.currentUser?.uid;
+//     tz.initializeTimeZones();
+//     if (userId == null) {
+//       print("No user is logged in.");
+//       return false;
+//     }
+//
+//     final docRef = FirebaseFirestore.instance
+//         .collection("User")
+//         .doc("fireid")
+//         .collection("stepCounter")
+//         .doc(userId);
+//
+//     DocumentSnapshot<Map<String, dynamic>> snapshot = await docRef.get();
+//     int? initialStepCount = snapshot.data()?['initial_steps'];
+//    print("initil steps $initialStepCount");
+//     pedometer.listen((event) async {
+//       if (initialStepCount == null) {
+//         initialStepCount = event.steps;
+//         await docRef.set({
+//           "initial_steps": initialStepCount,
+//         }, SetOptions(merge: true));
+//       }
+//
+//       int stepsSinceStart = event.steps - initialStepCount!;
+//       if (stepsSinceStart < 0) stepsSinceStart = 0;
+//
+//       final currentTimeZone = tz.local.name;
+//
+//       await docRef.set({
+//         "steps": stepsSinceStart,
+//         "timezone": currentTimeZone,
+//         "lastUpdated": Timestamp.now(),
+//       }, SetOptions(merge: true));
+//
+//       if (service is AndroidServiceInstance) {
+//         service.setForegroundNotificationInfo(
+//           title: "Step Counter Running",
+//           content: "Steps: $stepsSinceStart",
+//         );
+//       }
+//       print("Step event: ${event.steps}");
+//       service.invoke('updateSteps', {'steps': stepsSinceStart});
+//       print("Current step $stepsSinceStart");
+//       print("Event steps: ${event.steps}, Initial steps: $initialStepCount");
+//     });
+//
+//     return true;
+//   } catch (e) {
+//     print('Error in background service: $e');
+//     return false;
+//   }
+// }
 
+//this normal count with back count
+// @pragma('vm:entry-point')
+// Future<bool> onStart(ServiceInstance service) async {
+//   DartPluginRegistrant.ensureInitialized();
+//   print('[onStart] Background service starting...');
+//
+//   await Firebase.initializeApp();
+//   print('[onStart] Firebase initialized successfully.');
+//
+//   tz.initializeTimeZones();
+//   print('[onStart] Timezones initialized.');
+//
+//   if (service is AndroidServiceInstance) {
+//     service.on('setAsForeground').listen((event) {
+//       service.setAsForegroundService();
+//     });
+//   }
+//
+//   service.on('stopService').listen((event) {
+//     service.stopSelf();
+//   });
+//
+//   try {
+//     final pedometer = Pedometer.stepCountStream;
+//     final userId = FirebaseAuth.instance.currentUser?.uid;
+//
+//     if (userId == null) {
+//       print("[onStart] No user is logged in.");
+//       return false;
+//     }
+//
+//     final docRef = FirebaseFirestore.instance
+//         .collection("User")
+//         .doc("fireid") //
+//         .collection("stepCounter")
+//         .doc(userId);
+//
+//     DocumentSnapshot<Map<String, dynamic>> snapshot = await docRef.get();
+//     int? initialStepCount = snapshot.data()?['initial_steps'];
+//
+//     pedometer.listen((event) async {
+//       print("[onStart] Step event: ${event.steps}");
+//
+//       // Check and reset if sensor step count is lower than stored one
+//       if (initialStepCount == null || event.steps < initialStepCount!) {
+//         print("[onStart] Setting or resetting initial step count.");
+//         initialStepCount = event.steps;
+//         await docRef.set({
+//           "initial_steps": initialStepCount,
+//           "lastUpdated": Timestamp.now(),
+//           "timezone": tz.local.name,
+//         }, SetOptions(merge: true));
+//         return; // Skip this event
+//       }
+//
+//       int stepsSinceStart = event.steps - initialStepCount!;
+//       if (stepsSinceStart < 0) stepsSinceStart = 0;
+//
+//       print("[onStart] Steps updated: $stepsSinceStart");
+//
+//       await docRef.set({
+//         "steps": stepsSinceStart,
+//         "lastUpdated": Timestamp.now(),
+//         "timezone": tz.local.name,
+//       }, SetOptions(merge: true));
+//
+//       if (service is AndroidServiceInstance) {
+//         service.setForegroundNotificationInfo(
+//           title: "Step Counter Running",
+//           content: "Steps: $stepsSinceStart",
+//         );
+//       }
+//
+//       service.invoke('updateSteps', {'steps': stepsSinceStart});
+//     });
+//
+//     return true;
+//   } catch (e) {
+//     print('[onStart] Error in background service: $e');
+//     return false;
+//   }
+// }
 @pragma('vm:entry-point')
 Future<bool> onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
+  await Firebase.initializeApp();
 
   if (service is AndroidServiceInstance) {
     service.on('setAsForeground').listen((event) {
       service.setAsForegroundService();
     });
+    service.on('stopService').listen((event) {
+      service.stopSelf();
+    });
   }
-
-  service.on('stopService').listen((event) {
-    service.stopSelf();
-  });
 
   try {
     final pedometer = Pedometer.stepCountStream;
     final userId = FirebaseAuth.instance.currentUser?.uid;
     tz.initializeTimeZones();
+
     if (userId == null) {
       print("No user is logged in.");
       return false;
@@ -47,37 +200,66 @@ Future<bool> onStart(ServiceInstance service) async {
         .collection("stepCounter")
         .doc(userId);
 
+    // Fetch last saved steps and lastUpdated timestamp from Firestore
     DocumentSnapshot<Map<String, dynamic>> snapshot = await docRef.get();
-    int? initialStepCount = snapshot.data()?['initial_steps'];
+    int lastSavedSteps = snapshot.data()?['steps'] ?? 0;
+    Timestamp? lastUpdatedTimestamp = snapshot.data()?['lastUpdated'];
+
+    int? initialSensorStep;
 
     pedometer.listen((event) async {
-      if (initialStepCount == null) {
-        initialStepCount = event.steps;
+      final now = DateTime.now();
+
+      // Check if it's a new day compared to lastUpdated in Firestore
+      DateTime lastUpdatedDate =
+          lastUpdatedTimestamp?.toDate() ?? DateTime(2000);
+      bool isNewDay =
+          !(lastUpdatedDate.year == now.year &&
+              lastUpdatedDate.month == now.month &&
+              lastUpdatedDate.day == now.day);
+
+      if (isNewDay) {
+        // Reset step counts for new day
+        lastSavedSteps = 0;
+        initialSensorStep =
+            event.steps; // Reset baseline to current sensor steps
+        lastUpdatedTimestamp = Timestamp.fromDate(now);
+
         await docRef.set({
-          "initial_steps": initialStepCount,
+          "steps": 0,
+          "lastUpdated": lastUpdatedTimestamp,
+          "timezone": tz.local.name,
         }, SetOptions(merge: true));
+
+        print("Step count reset in background service for new day.");
       }
 
-      int stepsSinceStart = event.steps - initialStepCount!;
-      if (stepsSinceStart < 0) stepsSinceStart = 0;
+      // Set initial sensor step if not set yet
+      if (initialSensorStep == null) {
+        initialSensorStep = event.steps;
+      }
 
-      final currentTimeZone = tz.local.name;
+      int stepsSinceReboot = event.steps - initialSensorStep!;
+      if (stepsSinceReboot < 0) stepsSinceReboot = 0;
 
+      int totalSteps = lastSavedSteps + stepsSinceReboot;
+
+      // Update Firestore with total steps and lastUpdated time
       await docRef.set({
-        "steps": stepsSinceStart,
-        "timezone": currentTimeZone,
-        "lastUpdated": Timestamp.now(),
+        "steps": totalSteps,
+        "lastUpdated": Timestamp.fromDate(now),
+        "timezone": tz.local.name,
       }, SetOptions(merge: true));
 
       if (service is AndroidServiceInstance) {
         service.setForegroundNotificationInfo(
           title: "Step Counter Running",
-          content: "Steps: $stepsSinceStart",
+          content: "Steps: $totalSteps",
         );
       }
 
-      service.invoke('updateSteps', {'steps': stepsSinceStart});
-      print("Current step $stepsSinceStart");
+      service.invoke('updateSteps', {'steps': totalSteps});
+      print("Current steps: $totalSteps");
     });
 
     return true;
@@ -356,7 +538,6 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
   @override
   Widget build(BuildContext context) {
     double progress = (_steps / _dailyGoal).clamp(0.0, 1.0);
-
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -397,7 +578,6 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
                       ],
                     ),
                     const SizedBox(height: 20),
-
                     // Hero image
                     Center(
                       child: CircleAvatar(
