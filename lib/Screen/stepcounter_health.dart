@@ -75,6 +75,7 @@ Future<bool> onStart(ServiceInstance service) async {
 
         await docRef.set({
           "steps": 0,
+          "calories": 0.0,
           "lastUpdated": lastUpdatedTimestamp,
           "timezone": tz.local.name,
         }, SetOptions(merge: true));
@@ -91,11 +92,20 @@ Future<bool> onStart(ServiceInstance service) async {
       if (stepsSinceReboot < 0) stepsSinceReboot = 0;
 
       int totalSteps = lastSavedSteps + stepsSinceReboot;
+      // Fetch user weight for calorie calculation
+      final userDoc =
+          await FirebaseFirestore.instance.collection('User').doc(userId).get();
+
+      final weightStr = userDoc['weight'] ?? '70';
+      final weight = double.tryParse(weightStr) ?? 70.0;
+      final calories = totalSteps * weight * 0.0005;
 
       // Update Firestore with total steps and lastUpdated time
       await docRef.set({
         "steps": totalSteps,
         "lastUpdated": Timestamp.fromDate(now),
+        "calories": calories,
+        "weight": weight,
         "timezone": tz.local.name,
       }, SetOptions(merge: true));
 
@@ -140,7 +150,6 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
     _getAndroidVersion();
     _initStepCounter();
     _loadSavedSteps();
-    _fetchWeightFromFirestore();
   }
 
   Future<void> _loadSavedSteps() async {
@@ -160,59 +169,22 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
 
     if (snapshot.exists) {
       int savedSteps = snapshot.data()?["steps"] ?? 0;
+      double savedCalories = (snapshot.data()?["calories"] ?? 0.0).toDouble();
+      double savedWeight = (snapshot.data()?["weight"] ?? 70.0).toDouble();
       setState(() {
         _steps = savedSteps;
+        _calories = savedCalories;
+        _weight = savedWeight;
         _isLoading = false;
       });
-      await _updateCalories();
+      print("load weight $_weight");
+      print("load calories $_calories");
+      print("load step $_steps");
+      // await _updateCalories();
     } else {
       setState(() {
         _isLoading = false;
       });
-    }
-  }
-
-  Future<void> _updateCalories() async {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) {
-      print("No user logged in.");
-      return;
-    }
-
-    try {
-      final userDoc =
-          await FirebaseFirestore.instance.collection('User').doc(userId).get();
-
-      if (userDoc.exists) {
-        final weightStr = userDoc['weight'] ?? '70';
-        final weight = double.tryParse(weightStr) ?? 70.0;
-
-        // Calculate calories only if steps or weight changed meaningfully
-        final calories = _steps * weight * 0.0005;
-
-        final docRef = FirebaseFirestore.instance
-            .collection("User")
-            .doc(userId)
-            .collection("stepCounter")
-            .doc("today");
-
-        await docRef.set({
-          'steps': _steps,
-          'weight': weight,
-          'calories': calories,
-          'timestamp': FieldValue.serverTimestamp(),
-        });
-
-        // Only call setState if something actually changed
-        if (mounted) {
-          setState(() {
-            _weight = weight;
-            _calories = calories;
-          });
-        }
-      }
-    } catch (e) {
-      print("Error fetching or saving step data: $e");
     }
   }
 
@@ -254,8 +226,12 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
 
     _backgroundService.on('updateSteps').listen((event) {
       if (event != null && mounted) {
+        final steps = event['steps'] ?? 0;
+        final calories = steps * _weight * 0.0005;
+
         setState(() {
-          _steps = event['steps'] ?? 0;
+          _steps = steps;
+          _calories = calories;
         });
       }
     });
@@ -338,50 +314,6 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
   }
 
   double _weight = 0.0;
-  Future<void> _fetchWeightFromFirestore() async {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) {
-      print("No user logged in.");
-      return;
-    }
-
-    try {
-      DocumentSnapshot userDoc =
-          await FirebaseFirestore.instance.collection('User').doc(userId).get();
-
-      if (userDoc.exists) {
-        final weightStr = userDoc['weight'] ?? '70'; // Get weight as string
-        final weight = double.tryParse(weightStr) ?? 70.0;
-        final calories = _steps * weight * 0.0005;
-
-        print("Fetched weight: $weightStr");
-        print("Calculated calories: $calories");
-
-        final docRef = FirebaseFirestore.instance
-            .collection("User")
-            .doc(userId)
-            .collection("stepCounter")
-            .doc("today"); // You can use a date string instead of "today"
-
-        await docRef.set({
-          'steps': _steps,
-          'weight': weight,
-          'calories': calories,
-          'timestamp': FieldValue.serverTimestamp(),
-        });
-
-        setState(() {
-          _weight = weight;
-          _calories = calories;
-        });
-
-        print("Step data saved to Firestore.");
-      }
-    } catch (e) {
-      print("Error fetching or saving step data: $e");
-    }
-  }
-
   final int _dailyGoal = 6000;
   @override
   Widget build(BuildContext context) {
