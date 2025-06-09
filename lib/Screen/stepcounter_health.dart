@@ -142,6 +142,8 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
   final FlutterBackgroundService _backgroundService =
       FlutterBackgroundService();
   bool _isLoading = true;
+  double _weight = 0.0;
+  final int _dailyGoal = 6000;
 
   @override
   void initState() {
@@ -150,6 +152,18 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
     _getAndroidVersion();
     _initStepCounter();
     _loadSavedSteps();
+    
+    // Listen for auth state changes
+    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (user == null) {
+        // User logged out, just stop the service without resetting
+        _stopBackgroundService();
+      } else {
+        // User logged in, restart the service and load their saved steps
+        _startBackgroundService();
+        _loadSavedSteps();
+      }
+    });
   }
 
   Future<void> _loadSavedSteps() async {
@@ -180,7 +194,6 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
       print("load weight $_weight");
       print("load calories $_calories");
       print("load step $_steps");
-      // await _updateCalories();
     } else {
       setState(() {
         _isLoading = false;
@@ -203,8 +216,7 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
 
     await flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >()
+            AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
 
     await _backgroundService.configure(
@@ -253,13 +265,44 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
       }
     }
 
+    // Stop any existing service first
+    await _stopBackgroundService();
+    
+    // Load the user's existing step count
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId != null) {
+      final docRef = FirebaseFirestore.instance
+          .collection("User")
+          .doc("fireid")
+          .collection("stepCounter")
+          .doc(userId);
+          
+      // Get the current document
+      final snapshot = await docRef.get();
+      final now = DateTime.now();
+      
+      // Check if it's a new day
+      DateTime lastUpdatedDate = (snapshot.data()?['lastUpdated'] as Timestamp?)?.toDate() ?? DateTime(2000);
+      bool isNewDay = !(lastUpdatedDate.year == now.year &&
+          lastUpdatedDate.month == now.month &&
+          lastUpdatedDate.day == now.day);
+
+      // Only reset if it's a new day
+      if (isNewDay) {
+        await docRef.set({
+          "steps": 0,
+          "calories": 0.0,
+          "lastUpdated": Timestamp.fromDate(now),
+          "timezone": tz.local.name,
+        }, SetOptions(merge: true));
+      }
+    }
+
     await _backgroundService.startService();
 
     if (mounted) {
       setState(() => _isServiceRunning = true);
     }
-
-    // _showSnackbar("Step counter started.");
   }
 
   Future<void> _stopBackgroundService() async {
@@ -267,7 +310,6 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
     if (mounted) {
       setState(() => _isServiceRunning = false);
     }
-    // _showSnackbar("Step counter stopped.");
   }
 
   Future<void> _getAndroidVersion() async {
@@ -286,9 +328,7 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
 
   void _showSnackbar(String message) {
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -313,8 +353,6 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
     super.dispose();
   }
 
-  double _weight = 0.0;
-  final int _dailyGoal = 6000;
   @override
   Widget build(BuildContext context) {
     double progress = (_steps / _dailyGoal).clamp(0.0, 1.0);
@@ -328,194 +366,122 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
         ),
         elevation: 4,
       ),
-      body:
-          _isLoading
-              ? const Center(child: SpinKitCircle(color: Colors.black))
-              : SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 20,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Date
-                    Row(
-                      children: [
-                        const Icon(Icons.calendar_today, color: Colors.black),
-                        const SizedBox(width: 10),
-                        Text(
-                          DateFormat(
-                            'EEEE, MMMM d, yyyy',
-                          ).format(DateTime.now()),
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            // color: Colors.deepPurple.shade800,
-                            color: Colors.black,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    // Hero image
-                    Center(
-                      child: CircleAvatar(
-                        radius: 100,
-                        child: Image.network(
-                          "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcREg4rw59UEsRoChPqlq3mNOWfEsIZAV5fS_zxSPySmQmsAgL2NWbMGIj-h4Sy3Rb77kTU&usqp=CAU",
-                          height: 200,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 25),
-                    // Daily Goal Progress
-                    Text(
-                      "Daily Goal Progress",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 14,
-                        backgroundColor: Colors.deepPurple.shade100,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Colors.deepPurple,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '$_steps steps',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Text(
-                          'Goal: $_dailyGoal',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Center(
-                      child: Text(
-                        progress >= 1.0
-                            ? "Goal achieved!"
-                            : progress >= 0.75
-                            ? "Almost there!"
-                            : progress >= 0.5
-                            ? "Keep going, you're halfway there!"
-                            : "Let's get moving!",
-                        style: TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 16,
-                          color: Colors.deepPurple.shade600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 25),
-                    // Steps Card
-                    _InfoCard(
-                      title: "Steps Today",
-                      value: '$_steps',
-                      icon: Icons.directions_walk,
-                      iconColor: Colors.deepPurple,
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Calories Card
-                    _InfoCard(
-                      title: "Calories Burned",
-                      value: "${_calories.toStringAsFixed(2)} kcal",
-                      icon: Icons.local_fire_department,
-                      iconColor: Colors.deepOrange,
-                    ),
-                    const SizedBox(height: 30),
-
-                    // Background Service Status (if applicable)
-                    // if (_androidVersion != null && _androidVersion! < 13)
-                    //   Card(
-                    //     shape: RoundedRectangleBorder(
-                    //       borderRadius: BorderRadius.circular(16),
-                    //     ),
-                    //     elevation: 3,
-                    //     child: ListTile(
-                    //       leading: Icon(
-                    //         _isServiceRunning
-                    //             ? Icons.play_circle_fill
-                    //             : Icons.stop_circle,
-                    //         color:
-                    //             _isServiceRunning ? Colors.green : Colors.red,
-                    //         size: 32,
-                    //       ),
-                    //       title: const Text(
-                    //         "Background Service",
-                    //         style: TextStyle(fontWeight: FontWeight.bold),
-                    //       ),
-                    //       subtitle: Text(
-                    //         _isServiceRunning ? "Running" : "Stopped",
-                    //         style: TextStyle(
-                    //           color:
-                    //               _isServiceRunning ? Colors.green : Colors.red,
-                    //           fontWeight: FontWeight.w600,
-                    //         ),
-                    //       ),
-                    //     ),
-                    //   ),
-                  ],
-                ),
+      body: _isLoading
+          ? const Center(child: SpinKitCircle(color: Colors.black))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 20,
               ),
-      // bottomSheet: BottomSheet(
-      //   enableDrag: false,
-      //   onClosing: () {
-      //     Navigator.pop(context);
-      //   },
-      //   builder: (BuildContext context) {
-      //     return Container(
-      //       height: 250,
-      //       padding: EdgeInsets.all(16),
-      //       decoration: BoxDecoration(
-      //         color: Colors.white,
-      //         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      //       ),
-      //       child: Column(
-      //         children: [
-      //           GestureDetector(
-      //             onTap: () {
-      //               Navigator.pop(context);
-      //             },
-      //             child: Icon(Icons.close),
-      //           ),
-      //           Text("This is a bottom sheet"),
-      //           ElevatedButton(
-      //             child: Text("Open Setting"),
-      //             onPressed: () {
-      //               print("clling setting");
-      //               openAppSettings();
-      //               Navigator.pop(context);
-      //             },
-      //           ),
-      //         ],
-      //       ),
-      //     );
-      //   },
-      // ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Date
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today, color: Colors.black),
+                      const SizedBox(width: 10),
+                      Text(
+                        DateFormat('EEEE, MMMM d, yyyy').format(DateTime.now()),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  // Hero image
+                  Center(
+                    child: CircleAvatar(
+                      radius: 100,
+                      child: Image.network(
+                        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcREg4rw59UEsRoChPqlq3mNOWfEsIZAV5fS_zxSPySmQmsAgL2NWbMGIj-h4Sy3Rb77kTU&usqp=CAU",
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 25),
+                  // Daily Goal Progress
+                  Text(
+                    "Daily Goal Progress",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 14,
+                      backgroundColor: Colors.deepPurple.shade100,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.deepPurple,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '$_steps steps',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      Text(
+                        'Goal: $_dailyGoal',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Center(
+                    child: Text(
+                      progress >= 1.0
+                          ? "Goal achieved!"
+                          : progress >= 0.75
+                              ? "Almost there!"
+                              : progress >= 0.5
+                                  ? "Keep going, you're halfway there!"
+                                  : "Let's get moving!",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 16,
+                        color: Colors.deepPurple.shade600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 25),
+                  // Steps Card
+                  _InfoCard(
+                    title: "Steps Today",
+                    value: '$_steps',
+                    icon: Icons.directions_walk,
+                    iconColor: Colors.deepPurple,
+                  ),
+                  const SizedBox(height: 20),
+                  // Calories Card
+                  _InfoCard(
+                    title: "Calories Burned",
+                    value: "${_calories.toStringAsFixed(2)} kcal",
+                    icon: Icons.local_fire_department,
+                    iconColor: Colors.deepOrange,
+                  ),
+                ],
+              ),
+            ),
     );
   }
 }
