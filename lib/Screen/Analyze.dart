@@ -79,9 +79,9 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
       _wrinkleInterpreter = await Interpreter.fromAsset(
         'assets/models/Wrinkles.tflite',
       );
-      print("✅ Models Loaded Successfully!");
+      print("Models Loaded Successfully!");
     } catch (e) {
-      print("❌ Error loading models: $e");
+      print("Error loading models: $e");
     }
   }
 
@@ -226,7 +226,8 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
     if (skinType == "Dry") {
       precautions += "• Use a moisturizer regularly.\n";
       precautions += "• Avoid hot showers to prevent drying your skin.\n";
-    } else if (skinType == "Oily") {
+    }
+    else if (skinType == "Oily") {
       precautions += "• Use an oil-free moisturizer.\n";
       precautions +=
           "• Cleanse your skin with a gentle, oil-controlling cleanser.\n";

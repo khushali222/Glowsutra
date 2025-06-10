@@ -20,7 +20,8 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 @pragma('vm:entry-point')
 Future<void> notificationTapBackground(
   NotificationResponse notificationResponse,
-) async {
+) async
+{
   await Firebase.initializeApp();
   final String? actionId = notificationResponse.actionId;
   final String? payload = notificationResponse.payload;
@@ -155,7 +156,6 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     _initNotifications();
     _loadWaterIntake();
     WidgetsBinding.instance.addObserver(this);
-
     _fetchAndSaveDeviceId();
     print("InitState done. Notifications enabled? $notificationsEnabled");
   }
@@ -232,7 +232,6 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
             "glasscount": totalGlasses,
             "timezone": currentTimeZone,
             "lastUpdated": Timestamp.now(),
-
           });
 
       // Also update SharedPreferences (optional)
@@ -250,12 +249,14 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
   }
 
   Future<void> _loadNotificationPreferences() async {
+    print("calling notification prefrence ");
     SharedPreferences prefs = await SharedPreferences.getInstance();
 
     // First try from local prefs
     bool enablenoti = prefs.getBool('notificationsEnabled') ?? false;
     String reminderType = prefs.getString('reminder_type') ?? "None";
-
+    print("enable noti $enablenoti");
+    print("enable noti  type  of reminder $reminderType");
     // Optionally verify Firestore value for accuracy or sync
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -281,7 +282,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     // Update the state
     setState(() {
       notificationsEnabled = enablenoti;
-      selectedReminder = reminderType;
+      // selectedReminder = reminderType;
     });
 
     print(
@@ -393,7 +394,8 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     final prefs = await SharedPreferences.getInstance();
     List<String> waterList =
         prefs.getStringList('saved_notification_ids') ?? [];
-    print("water list $waterList");
+    print("water list before $waterList");
+
 
     setState(() {
       notificationsEnabled = value;
@@ -411,9 +413,9 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
 
         _scheduleNotifications(_getDaysFromReminder(selectedReminder));
         prefs.setBool('alreadyScheduled', true);
+        print("notifiction already waterlist 1 $waterList");
       }
-    } else
-    {
+    } else {
       // Disable notifications
       prefs.setBool('alreadyScheduled', false);
 
@@ -424,6 +426,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
 
         // Optionally clear the saved IDs
         await prefs.remove('saved_notification_ids');
+        print("notifiction already waterlist 2 $waterList");
       }
 
       // Safely show snackbar only if widget is still mounted
@@ -432,8 +435,9 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
         //   context,
         // ).showSnackBar(SnackBar(content: Text("Notifications Disabled!")));
       }
+      print("notifiction already waterlist 3 $waterList");
     }
-
+    print("water list after $waterList");
     _saveNotificationPreferences();
   }
 
@@ -478,6 +482,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
           print("schedule");
           savedIds.add(id.toString());
           _scheduleNotification(day, hour, minute, id);
+          print("saved id $id.toString()");
         }
       }
     }
@@ -514,8 +519,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     int hour,
     int minute,
     int id,
-  ) async
-  {
+  ) async {
     final now = DateTime.now();
     DateTime scheduledTime = DateTime(
       now.year,
@@ -524,7 +528,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
       hour,
       minute,
     ).add(Duration(days: dayOffset));
-
+    print("notification start calling");
     await _requestPermissions(); // Make sure you request notification + exact_alarm
 
     if (scheduledTime.isBefore(now)) {
@@ -605,6 +609,8 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
       "water_notification",
       id.toString(),
     );
+
+    print("schedule notification time  $scheduledTime ");
   }
 
   void _saveNotificationWhenTimeArrives(
@@ -690,7 +696,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
     // final prefs = await SharedPreferences.getInstance();
     List<String> waterList =
         prefs.getStringList('saved_notification_ids') ?? [];
-    print("water list $waterList");
+    print("water list  disable old reminder $waterList");
     if (userId == null) return;
 
     final doc =
@@ -971,7 +977,8 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
                       //     ),
                       //   ],
                       // ),
-                      // Dropdown
+
+                    // Dropdown
                       Row(
                         children: [
                           Expanded(

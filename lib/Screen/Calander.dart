@@ -255,6 +255,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ),
         );
       });
+      print("reminder calling ");
     }
   }
 
@@ -306,6 +307,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       print("schedule time $scheduledDateTime");
                       // print("reminder time $");
                       _scheduleNotification(controller.text, scheduledDateTime);
+
                       _saveReminders();
                       Navigator.pop(context);
                     }
@@ -492,6 +494,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 color: Colors.red,
                               ),
                               onPressed: () {
+
                                 _removeReminder(reminderDate, reminderData);
                               },
                             ),
