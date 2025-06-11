@@ -338,6 +338,7 @@ class _SplashScreenState extends State<SplashScreen>
 
         await docRef.set({
           'steps': 0,
+          "calories": 0.0,
           'lastUpdated': Timestamp.fromDate(now),
         }, SetOptions(merge: true));
         print("Step count reset in Firebase because it's a new day.");

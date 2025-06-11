@@ -888,7 +888,7 @@ class _StepCounterPageState extends State<StepCounterPage> with RouteAware {
           "steps": 0,
           "calories": 0.0,
           "lastUpdated": Timestamp.fromDate(now),
-          "timezone": tz.local.name, // ✅ Safe to use now
+          "timezone": tz.local.name, //
         }, SetOptions(merge: true));
       }
     }

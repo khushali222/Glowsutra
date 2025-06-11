@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 import 'package:camera/camera.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
@@ -205,7 +207,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
         _isLoading = false;
       });
     } catch (e, stackTrace) {
-      print("❌ Error processing image: $e");
+      print("Error processing image: $e");
       print(stackTrace);
       setState(() {
         _isLoading = false;
@@ -218,32 +220,31 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
     String acneStatus,
     String skinTone,
     String wrinkleStatus,
-  )
-  {
-    String precautions = "Skin Care Tips: \n";
+  ) {
+    String precautions = "Skin Care Tips:\n\n";
+    int score = 100;
 
-    // Tips based on skin type
     if (skinType == "Dry") {
       precautions += "• Use a moisturizer regularly.\n";
       precautions += "• Avoid hot showers to prevent drying your skin.\n";
-    }
-    else if (skinType == "Oily") {
+      score -= 10;
+    } else if (skinType == "Oily") {
       precautions += "• Use an oil-free moisturizer.\n";
       precautions +=
           "• Cleanse your skin with a gentle, oil-controlling cleanser.\n";
+      score -= 10;
     } else if (skinType == "Normal") {
       precautions += "• Keep a balanced skincare routine.\n";
       precautions += "• Use a gentle cleanser to maintain skin hydration.\n";
     }
 
-    // Tips based on acne status
     if (acneStatus == "Acne") {
       precautions += "• Avoid touching your face frequently.\n";
       precautions += "• Use a face wash suitable for acne-prone skin.\n";
       precautions += "• Drink plenty of water and eat a balanced diet.\n";
+      score -= 20;
     }
 
-    // Tips based on skin tone
     if (skinTone == "Fair / Light") {
       precautions += "• Apply sunscreen with a high SPF.\n";
       precautions += "• Avoid direct exposure to the sun.\n";
@@ -255,10 +256,24 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
       precautions += "• Use sunscreen to prevent hyperpigmentation.\n";
       precautions += "• Keep your skin moisturized to avoid dryness.\n";
     }
+
     if (wrinkleStatus == "Wrinkled") {
       precautions += "• Stay hydrated to keep skin elastic.\n";
       precautions += "• Use anti-aging serums with retinol.\n";
       precautions += "• Avoid excessive sun exposure.\n";
+      score -= 15;
+    }
+
+    precautions += "\nOverall Skin Health Score :  ${score}%\n";
+    if (score >= 85) {
+      precautions +=
+          "Your skin is in excellent condition. Keep up the great care!";
+    } else if (score >= 60) {
+      precautions +=
+          "Your skin is in good condition. Follow the tips above to improve further.";
+    } else {
+      precautions +=
+          "Your skin needs attention. Consistently follow the care tips to improve health.";
     }
     return precautions;
   }
@@ -328,6 +343,31 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text("Details Saved!")));
+
+    // final userId = FirebaseAuth.instance.currentUser?.uid;
+    // final Timestamp now = Timestamp.fromDate(DateTime.now());
+    // await FirebaseFirestore.instance
+    //     .collection("User")
+    //     .doc("fireid")
+    //     .collection("AnalyseSkin")
+    //     .doc(userId)
+    //     .set({
+    //   "acneStatus": _resultAcne,
+    //   "skinType": _resultType,
+    //   "skinTone": _resultTone,
+    //   "wrinkles": _resultWrinkle,
+    //   "precautions": _precautions,
+    //   "imagePath": widget.image!.path,
+    //
+    // }, SetOptions(merge: true)); //  use the right key!
+    // //await prefs.setString('reminder_type', selectedReminder);
+    //
+    // await prefs.setString(
+    //   'notifications_enabled_at',
+    //   now.toDate().toIso8601String(),
+    // );
+    // print("image path ${widget.image!.path}");
+    // print("image  ${widget.image}");
   }
 
   Widget _buildShimmerEffect() {
@@ -390,7 +430,10 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
                 child: Column(
                   children: [
                     GestureDetector(
-                      onTap: () => _pickImage(ImageSource.gallery),
+                      onTap: () {
+                        _pickImage(ImageSource.gallery);
+                        print("image of picked image ${widget.image!}");
+                      },
                       child:
                           _isLoading
                               ? _buildShimmerEffect()
@@ -600,8 +643,7 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
     String? selectedValue,
     List<String> options,
     Function(String?) onChanged,
-  )
-  {
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Column(
@@ -662,4 +704,74 @@ class _SkinAnalyzerScreenState extends State<SkinAnalyzerScreen> {
     _faceDetector?.close();
     super.dispose();
   }
+
+  // Future<void> _saveData() async {
+  //   try {
+  //     final user = FirebaseAuth.instance.currentUser;
+  //     if (user == null) {
+  //       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("User not logged in")));
+  //       return;
+  //     }
+  //
+  //     await FirebaseFirestore.instance
+  //         .collection("users")
+  //         .doc(user.uid)
+  //         .collection("analysis")
+  //         .doc("skin_analysis") // could use a timestamp if you want multiple entries
+  //         .set({
+  //       "acneStatus": _resultAcne,
+  //       "skinType": _resultType,
+  //       "skinTone": _resultTone,
+  //       "wrinkles": _resultWrinkle,
+  //       "precautions": _precautions,
+  //       "imagePath": widget.image?.path ?? "",
+  //       "timestamp": FieldValue.serverTimestamp(),
+  //     });
+  //
+  //     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Details Saved to Firebase!")));
+  //   } catch (e) {
+  //     print("Error saving data: $e");
+  //   }
+  // }
+  // Future<void> _loadSavedData() async {
+  //   try {
+  //     final user = FirebaseAuth.instance.currentUser;
+  //     if (user == null) {
+  //       print("No user logged in.");
+  //       return;
+  //     }
+  //
+  //     final doc = await FirebaseFirestore.instance
+  //         .collection("users")
+  //         .doc(user.uid)
+  //         .collection("analysis")
+  //         .doc("skin_analysis")
+  //         .get();
+  //
+  //     if (doc.exists) {
+  //       final data = doc.data()!;
+  //       setState(() {
+  //         _resultAcne = data['acneStatus'] ?? "";
+  //         _resultType = data['skinType'] ?? "";
+  //         _resultTone = data['skinTone'] ?? "";
+  //         _resultWrinkle = data['wrinkles'] ?? "";
+  //         _precautions = data['precautions'] ?? "";
+  //         _imagePath = data['imagePath'] ?? "";
+  //
+  //         if (_imagePath.isNotEmpty) {
+  //           widget.image = File(_imagePath);
+  //         }
+  //         _isloading = false;
+  //       });
+  //
+  //       print("Data loaded from Firebase.");
+  //     } else {
+  //       print("No skin analysis data found.");
+  //       _isloading = false;
+  //     }
+  //   } catch (e) {
+  //     print("Error loading data: $e");
+  //     _isloading = false;
+  //   }
+  // }
 }

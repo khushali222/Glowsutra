@@ -751,9 +751,8 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
             await prefs.remove('saved_notification_ids');
           }
 
-          // Safely show snackbar only if widget is still mounted
-        }
 
+        }
         await FirebaseFirestore.instance
             .collection("User")
             .doc("fireid")
@@ -983,7 +982,7 @@ class _WaterIntakeScreenState extends State<WaterIntakeScreen>
                         children: [
                           Expanded(
                             child: Text(
-                              "Note: Make sure to enable daily reminders every day to stay notified.",
+                              "Note : Make sure to enable daily reminders every day to stay notified.",
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
                                 color: Colors.black54,
